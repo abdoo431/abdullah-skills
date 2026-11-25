@@ -9,7 +9,7 @@ _INLINE_CODE_RE = re.compile(r"(`+)(.+?)\1")
 _INLINE_LINK_RE = re.compile(
     r"\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]*)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)"
 )
-_REF_DEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:\s*(<[^>]*>|\S+)")
+_REF_DEF_RE = re.compile(r"^ {0,3}\[(?!\^)[^\]]+\]:\s*(<[^>]*>|\S+)")
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 _HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.*?)[ \t]*(?:#+[ \t]*)?$")
 
@@ -31,7 +31,7 @@ def _unfenced(lines: list) -> list:
     for line in lines:
         m = _FENCE_RE.match(line)
         if fence is None:
-            if m:
+            if m and not (m.group(1)[0] == "`" and "`" in line[m.end():]):
                 fence = m.group(1)
                 out.append("")
             else:

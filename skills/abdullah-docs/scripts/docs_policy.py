@@ -6,7 +6,7 @@ from typing import Optional
 
 AGENT_SECTION_HEADING = "## Documentation (abdullah-docs)"
 
-_PROFILE_RE = re.compile(r"^\s*Documentation profile:\s*(\S+)", re.M | re.I)
+_PROFILE_RE = re.compile(r"^[ \t]*Documentation profile:[ \t]*(.*)$", re.M | re.I)
 _BLOCK_RE = re.compile(r"^```abdullah-docs[ \t]*\r?\n(.*?)^```", re.M | re.S)
 _DOC_HEADING_RE = re.compile(r"^##\s+Documentation\s*$", re.M)
 
@@ -35,7 +35,10 @@ def read_settings(policy: Optional[Path]) -> Settings:
     text = Path(policy).read_text(encoding="utf-8", errors="replace")
     m = _PROFILE_RE.search(text)
     if m:
-        s.profile = m.group(1)
+        words = m.group(1).split()
+        value = words[0].strip("`*_.,;:").lower() if words else ""
+        if value:
+            s.profile = value
     block = _BLOCK_RE.search(text)
     if not block:
         return s

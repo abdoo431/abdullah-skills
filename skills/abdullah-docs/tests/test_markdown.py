@@ -32,6 +32,14 @@ class LinkTests(unittest.TestCase):
         text = "```\n[a](b.md)\n```\nx `[a](b.md)` y\n[c](d.md)\n"
         self.assertEqual(links(text), [Link(5, "d.md", None)])
 
+    def test_footnote_is_not_a_reference(self):
+        self.assertEqual(links("[^1]: See the design notes."), [])
+
+    def test_inline_triple_backticks_do_not_open_a_fence(self):
+        text = "```js``` then [a](b.md)\n[c](d.md)\n# Head\n"
+        self.assertEqual(links(text), [Link(1, "b.md", None), Link(2, "d.md", None)])
+        self.assertEqual(heading_slugs(text), {"head"})
+
     def test_crlf(self):
         text = "a\n\n[x](a.md#h)\n```\n[y](b.md)\n```\n[z]: c.md\n"
         self.assertEqual(links(text.replace("\n", "\r\n")), links(text))

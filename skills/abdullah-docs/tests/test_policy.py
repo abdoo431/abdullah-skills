@@ -60,6 +60,18 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(s.profile, "full")
         self.assertEqual(s.adr_dir, "docs/adr")
 
+    def test_profile_normalised(self):
+        for line, want in [("Documentation profile: `full`", "full"),
+                           ("Documentation profile: Full.", "full"),
+                           ("Documentation profile:\nlean text", "lean")]:
+            s = read_settings(self.write("DOCUMENTATION.md", line + "\n"))
+            self.assertEqual(s.profile, want, line)
+
+    def test_specs_plans_changelog(self):
+        text = "```abdullah-docs\nspecs: docs/design\nplans: docs/plans\nchangelog: HISTORY.md\n```\n"
+        s = read_settings(self.write("DOCUMENTATION.md", text))
+        self.assertEqual((s.specs, s.plans, s.changelog), ("docs/design", "docs/plans", "HISTORY.md"))
+
     def test_examples(self):
         text = "```abdullah-docs\nexamples: skills/**, README.md\n```\n"
         s = read_settings(self.write("DOCUMENTATION.md", text))
