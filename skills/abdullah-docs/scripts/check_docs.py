@@ -33,7 +33,7 @@ class Context:
 
 
 def _read(path: Path) -> str:
-    return path.read_bytes().decode("utf-8", errors="replace").lstrip("﻿")
+    return path.read_bytes().decode("utf-8", errors="replace").lstrip("\ufeff")
 
 
 def _adr_rel(ctx: Context) -> str:
@@ -238,7 +238,7 @@ def _path_suffixes(files) -> set:
     out = set()
     for f in files:
         parts = f.split("/")
-        out.update("/".join(parts[i:]) for i in range(len(parts)))
+        out.update("/".join(parts[i:]) for i in range(len(parts) - 1))  # at least two segments
     return out
 
 
@@ -288,12 +288,12 @@ def check_code_paths(ctx: Context) -> list:
         span = _history_span(ctx, path, text)
         missing = []
         for line, token in docs_markdown.code_paths(text):
-            token = token.removeprefix("./")
-            if (ctx.root / token).exists() or _exists_from(ctx, path, token):
+            bare = token.removeprefix("./")
+            if (ctx.root / bare).exists() or _exists_from(ctx, path, bare):
                 continue
             if suffixes is None:
                 suffixes = _path_suffixes(docs_git.repo_files(ctx.root))
-            if token not in suffixes:
+            if "/" not in bare or bare not in suffixes:
                 missing.append((line, token))
         gone = {t for _, t in missing} - docs_git.ignored(ctx.root, sorted({t for _, t in missing}))
         for line, token in missing:

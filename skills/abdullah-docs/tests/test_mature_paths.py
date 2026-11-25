@@ -50,6 +50,16 @@ class MaturePathTests(unittest.TestCase):
     def test_build_outputs_ignored_by_git_are_skipped(self):
         self.assertEqual(self.doc("`dist/index.html` `web/dist/index.html`\n"), (0, []))
 
+    def test_bare_file_name_never_matches_a_deeper_file(self):
+        code, lines = self.doc("`./client.ts` `api/client.ts`\n")
+        self.assertEqual(len(lines), 1)
+        self.assertIn("path does not exist: ./client.ts", lines[0])
+
+    def test_one_outside_token_does_not_hide_ignored_ones(self):
+        code, lines = self.doc("`../out/x.py` `dist/index.html`\n")
+        self.assertEqual(len(lines), 1)
+        self.assertIn("../out/x.py", lines[0])
+
     def test_unignored_missing_path_still_reported(self):
         code, lines = self.doc("`build/index.html`\n")
         self.assertEqual(code, 1)
@@ -66,7 +76,7 @@ class MaturePathTests(unittest.TestCase):
     def test_version_like_names_are_not_paths(self):
         self.assertEqual(self.doc("`chore/release-0.4.0` `v1/2.5`\n"), (0, []))
         self.assertFalse(is_repo_path("chore/release-0.4.0"))
-        self.assertTrue(is_repo_path("a/b.7z") is False)
+        self.assertFalse(is_repo_path("a/b.7z"))
         self.assertTrue(is_repo_path("a/b.py"))
 
     def test_adr_template_files_are_skipped(self):

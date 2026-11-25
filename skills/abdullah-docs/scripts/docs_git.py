@@ -125,7 +125,10 @@ def repo_files(root: Path) -> list[str]:
 
 def ignored(root: Path, paths: list[str]) -> set[str]:
     """The subset of paths that .gitignore ignores, checked in one batch; empty outside a repository."""
-    if not paths or not is_repo(root):
+    if not is_repo(root):
+        return set()
+    paths = [p for p in paths if not os.path.normpath(p).replace(os.sep, "/").startswith("..")]
+    if not paths:
         return set()
     try:
         proc = subprocess.run(
@@ -135,6 +138,8 @@ def ignored(root: Path, paths: list[str]) -> set[str]:
             env=dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0"),
         )
     except (OSError, ValueError):
+        return set()
+    if proc.returncode not in (0, 1):
         return set()
     return {p for p in proc.stdout.split("\x00") if p}
 

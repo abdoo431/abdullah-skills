@@ -45,7 +45,7 @@ class EncodingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = fixtures.Repo(Path(tmp))
             repo.write("AGENTS.md", HEAD)
-            repo.write("docs/a.md", "[x](\u0645\u0633\u062a\u0646\u062f.md) `src/a\u2026b.py` `src/\u0645\u0644\u0641.py`\n")
+            repo.write("docs/a.md", "[x](\u0645\u0633\u062a\u0646\u062f.md) `docs/caf\u00e9.md` `src/\u0645\u0644\u0641.py`\n")
             repo.commit("init")
             proc = subprocess.run(
                 [sys.executable, str(SCRIPTS / "check_docs.py"), "--root", tmp, "--base", "main", "--all"],
@@ -53,6 +53,7 @@ class EncodingTests(unittest.TestCase):
             text = proc.stdout.decode("utf-8")
             self.assertIn("\u0645\u0633\u062a\u0646\u062f.md", text)
             self.assertIn("\u0645\u0644\u0641.py", text)
+            self.assertIn("caf\u00e9.md", text)
             self.assertEqual(proc.returncode, 1, proc.stderr)
 
     def test_every_script_reconfigures_its_streams(self):
