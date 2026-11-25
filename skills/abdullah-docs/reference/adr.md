@@ -32,10 +32,18 @@ If one is missing, the decision belongs in a commit message, a code comment or a
    - writes `NNNN-<title>.md` with today's date and `Status: Proposed`, from the project's template (`0000-template.md` or `template.md` in the ADR folder) or the skill's full template; `--short` always uses the skill's one-paragraph template;
    - adds a row to the index, in number order;
    - prints only the new file's path. Warnings go to stderr: a `warning: base` line means the number comes from local ADRs only, so say so.
-3. If it exits 2, read its message. An index that is neither a table nor a list of links is refused; add the row by hand, or propose turning the index into a table.
+3. If it exits 2, it wrote nothing. Read its message. The causes:
+   - **The index is in an unknown shape** (neither a table nor a list of links). Add the row by hand, or propose turning the index into a table.
+   - **The ADR folder holds ADR-like files it cannot number** (for example `ADR-007-use-redis.md` or `7_use_redis.md`), common in an adopted layout. Propose renaming them to `NNNN-<title>.md` and rename only with the owner's agreement, or pass `--adr-dir` for the folder that holds the numbered ADRs.
+   - **The title is empty**, or has no letter or digit.
+   - **The policy file named by `--policy` does not exist.**
 4. Fill every section from facts: the code, the history, the conversation. Write anything you cannot confirm as `> Needs confirmation: <question>`.
 5. Link the ADR from where the project uses such links: the related README, the changelog entry, and the commit's `Refs:` line.
 6. Change `Proposed` to `Accepted` only when the owner accepts the decision. Update the status in the index too.
+
+## Retroactive ADRs
+
+Setup records the major decisions the code already shows (step 5 of [setup.md](setup.md)). Such an ADR records a decision already in force, not a new one, so it needs no fresh decision by the owner. Its status line reads `Accepted (recorded retroactively on YYYY-MM-DD)`, with the day it was written, and its index status is `Accepted`. Its context comes from the code and the git history only; a reason they do not show is a `Needs confirmation` question.
 
 ## Supersede or amend
 

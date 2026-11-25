@@ -49,7 +49,9 @@ The owner can edit any draft. Write nothing until the owner agrees. If the owner
 
 ### 4. Write the skeleton
 
-Write, for the chosen profile:
+First, before writing any file, create the branch the setup is delivered on: `docs/<name>` (for example `docs/documentation-setup`), or the project's equivalent. If the working tree is on another task's branch with uncommitted work, say so and ask the owner how to proceed. Do not switch branches over that work on your own.
+
+Then write, for the chosen profile:
 
 | File | Source | Profile |
 |---|---|---|
@@ -79,7 +81,7 @@ For `full`, record the spec and plan folders and their file names in the policy 
 ### 5. Write what the code shows
 
 1. **An architecture overview** (`docs/architecture.md`) when the project has more than one component, or at setup in `full`. Describe the components, how they talk, and where each lives, from the code.
-2. **Retroactive ADRs** for the major decisions the code makes visible: the framework, the database, the architecture style, and dependencies with lock-in. Create each with `new_adr.py` (see [adr.md](adr.md)). In each:
+2. **Retroactive ADRs** for the major decisions the code makes visible: the framework, the database, the architecture style, and dependencies with lock-in. They record decisions already in force, so they are `Accepted` without a fresh decision by the owner (see [adr.md](adr.md#retroactive-adrs)). Create each with `new_adr.py`. In each:
    - set the status line to `Accepted (recorded retroactively on YYYY-MM-DD)`, with today's date, and its status in the index to `Accepted`;
    - take the context from the code and the git history only;
    - write any reason the code does not show as a `Needs confirmation` question.
@@ -104,7 +106,7 @@ End the setup with the full list of these questions, each with its file.
 
 ### 8. Deliver as one change
 
-1. Put everything on one branch, `docs/<name>` (for example `docs/documentation-setup`), or the project's equivalent.
+1. Commit everything on the branch created in step 4.
 2. Run the done check from [SKILL.md](../SKILL.md#the-done-check).
 3. Open a pull request where the project uses them.
 4. Report what was written, the profile, and the `Needs confirmation` list.
@@ -113,10 +115,11 @@ End the setup with the full list of these questions, each with its file.
 
 On a project that is already set up:
 
-1. Refresh the agent section and the templates. Report what changed.
+1. Create the branch as in step 4 before writing anything.
 2. Never rewrite the project's policy without showing the difference first and getting the owner's agreement.
-3. Never overwrite a template in the project (an ADR template, an incident or runbook template). The owner may have edited it, which makes it a project rule. When it differs from the skill's current template, show the difference and ask whether to update it.
-4. In the agent section, apply step 7 again: keep the heading, add only missing lines.
+3. Never overwrite a template in the project (an ADR template, an incident or runbook template). The owner may have edited it, which makes it a project rule. Compare it with the skill's current template; when they differ, show the difference and ask whether to update it.
+4. Write only what is missing: a template the profile needs that the project does not have, and the agent section's missing lines (apply step 7 again: keep the heading, add only missing lines).
+5. Report what was written, what was offered, and what the owner declined.
 
 ## Adopting an existing layout
 

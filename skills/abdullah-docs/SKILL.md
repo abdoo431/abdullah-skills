@@ -19,7 +19,7 @@ This skill keeps those links in place. Paths below are relative to this skill's 
 ## Rules that always apply
 
 - The project's written policy wins over this skill's defaults. You may propose a change to a project rule; never apply it on your own.
-- Never write files in a project, or edit its agent instructions, before the owner has seen and approved them.
+- Get the owner's approval before writing these: the setup's files (show the drafts first), the section in the agent instructions, and the records decision capture proposes. Routine documentation the current task requires does not need it: a changelog entry, an ADR the task calls for, fixes for the done check's findings.
 - Never create an empty or placeholder document to complete a set.
 - Never invent facts. Write what the code, the history or the owner shows. Mark anything else as `> Needs confirmation: <question>`.
 - Never delete or rewrite an ADR or spec. Supersede or amend it.
@@ -97,7 +97,8 @@ Run it at the end of every task that touched code or docs, and before opening a 
 2. Run `check_docs.py --root <repo>` with `--policy` when needed. Add `--release` on the project's release and hotfix branches, where moving entries out of `[Unreleased]` is the point.
 3. Fix every `error` finding. What each kind means:
    - `adr-number`: this branch's ADR number is taken. Renumber this branch's ADR ([reference/adr.md](reference/adr.md#renumber-after-a-collision)) and say so.
-   - `adr-index`, `adr-header`, `adr-name`: the ADR folder and its index disagree, or an ADR lacks a status or date line.
+   - `adr-index`: the ADR folder and its index disagree. `adr-header`: an ADR lacks a status or date line, or its `Superseded by` link names a missing ADR.
+   - `adr-name` (a warning): a file looks like an ADR but its name cannot be numbered.
    - `link`: a relative link points to a missing file. `anchor` (a warning): no heading matches the link's `#anchor`.
    - `code-path`: a backticked or linked repository path does not exist.
    - `changelog`: no `[Unreleased]` section, or a line was added below it ([reference/changelog.md](reference/changelog.md)).

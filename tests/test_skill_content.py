@@ -64,6 +64,14 @@ class SkillContentTests(unittest.TestCase):
         self.assertIn("{policy}", text)
         self.assertIn("https://github.com/abdoo431/abdullah-skills", text)
 
+    def test_agent_section_template_matches_design(self):
+        design = _read(REPO / "docs" / "design" / "2026-11-25-abdullah-docs-design.md").replace("\r\n", "\n")
+        section = design.split("\n### 6.5", 1)[1].split("\n### ", 1)[0]
+        block = re.search(r"^```markdown\n(.*?)^```", section, re.M | re.S).group(1)
+        expected = block.replace("docs/DOCUMENTATION.md", "{policy}")
+        template = _read(DOCS_SKILL / "templates" / "agent-section.md").replace("\r\n", "\n")
+        self.assertEqual(template, expected)
+
     def test_setup_reference_carries_a_parsable_settings_block(self):
         setup = DOCS_SKILL / "reference" / "setup.md"
         self.assertRegex(_read(setup), r"(?m)^```abdullah-docs\s*$")
