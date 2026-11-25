@@ -37,6 +37,16 @@ class GitTests(unittest.TestCase):
         repo.write("a.md", "1\n2\n3\n4\n5\n")
         self.assertEqual(docs_git.added_lines(repo.root, "main", "a.md"), {4, 5})
 
+    def test_added_lines_survives_color_config(self):
+        repo = fixtures.Repo(self.tmp)
+        repo.write("a.md", "1\n2\n3\n")
+        repo.commit("initial")
+        repo.branch("work")
+        repo._must("config", "color.ui", "always")
+        repo._must("config", "color.diff", "always")
+        repo.write("a.md", "1\n2\n3\n4\n5\n")
+        self.assertEqual(docs_git.added_lines(repo.root, "main", "a.md"), {4, 5})
+
     def test_added_lines_ignores_line_endings(self):
         repo = fixtures.Repo(self.tmp)
         repo.write("a.md", "1\n2\n3\n")

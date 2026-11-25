@@ -11,10 +11,10 @@ _SKIP_DIRS = {".git", "node_modules"}
 
 def git(root: Path, *args: str) -> str | None:
     """Run git in root and return stdout, or None when git fails or is missing."""
-    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     try:
         proc = subprocess.run(
-            ["git", "--no-pager", "-c", "core.quotepath=off", *args],
+            ["git", "--no-pager", "-c", "core.quotepath=off", "-c", "color.ui=false", *args],
             cwd=root, capture_output=True, text=True, encoding="utf-8",
             errors="replace", env=env, stdin=subprocess.DEVNULL,
         )
@@ -66,7 +66,7 @@ def changed_files(root: Path, base: str | None) -> set[str]:
     files = set(_untracked(root))
     point = _comparison_point(root, base)
     if point:
-        files.update(_lines(git(root, "diff", "--name-only", "--relative", point)))
+        files.update(_lines(git(root, "diff", "--no-color", "--no-ext-diff", "--name-only", "--relative", point)))
     return files
 
 
@@ -83,7 +83,7 @@ def added_lines(root: Path, base: str | None, path: str) -> set[int]:
     point = _comparison_point(root, base)
     if not point:
         return set()
-    out = git(root, "diff", "--unified=0", "--ignore-cr-at-eol", "--relative", point, "--", path)
+    out = git(root, "diff", "--no-color", "--no-ext-diff", "--unified=0", "--ignore-cr-at-eol", "--relative", point, "--", path)
     added: set[int] = set()
     for line in (out or "").splitlines():
         m = _HUNK.match(line)
