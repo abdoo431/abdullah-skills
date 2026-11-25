@@ -81,7 +81,7 @@ A change is done when each item is true, or does not apply and the pull request 
 - [ ] A changed skill has an updated docs page, and `README.md` and `.claude-plugin/plugin.json` list every skill.
 - [ ] Every fixed bug has a regression test that fails without the fix.
 - [ ] Commits reference the design section, ADR or issue they implement (`Refs:` lines).
-- [ ] The checks in `CLAUDE.md` pass: front matter, both test suites, the documentation check, and `claude plugin validate . --strict` after a manifest change.
+- [ ] The checks in `CLAUDE.md` pass: front matter, both test suites, and the documentation check. After a manifest change, `claude plugin validate .claude-plugin/marketplace.json --strict` passes, and `claude plugin validate .` passes with one warning only, "CLAUDE.md at the plugin root is not loaded as project context" ([ADR 0003](../.agents/adr/0003-plugin-validation-without-strict-mode-at-the-repository-root.md)).
 
 ## Tracing a problem
 

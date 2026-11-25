@@ -2,9 +2,10 @@
 
 Each skills/<name> folder is linked as <dest>/<name>: a directory junction on Windows,
 a symbolic link elsewhere. An existing link is replaced; a real folder or file is never
-touched. --remove deletes only the links this script would create.
+touched, and neither is a link to another folder. --remove deletes only links that
+point to this repository's skills.
 
-Exit codes: 0 done, 1 a target was refused, 2 usage error (nothing is changed).
+Exit codes: 0 done, 1 a target was refused or failed, 2 usage error (nothing is changed).
 """
 import argparse
 import os
@@ -18,16 +19,21 @@ DEFAULT_DESTS = (Path.home() / ".claude" / "skills", Path.home() / ".agents" / "
 
 
 def is_link(path: Path) -> bool:
-    """True for a symbolic link, or a junction on Windows (os.path.islink misses those)."""
+    """True for a symbolic link, or a junction on Windows (os.path.islink misses those).
+
+    Other reparse points, such as OneDrive placeholders, are real folders, not links.
+    """
     if os.path.islink(path):
         return True
     if os.name != "nt":
         return False
     try:
-        attributes = os.lstat(path).st_file_attributes
+        st = os.lstat(path)
     except OSError:
         return False
-    return bool(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+    if not st.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        return False
+    return st.st_reparse_tag in (stat.IO_REPARSE_TAG_MOUNT_POINT, stat.IO_REPARSE_TAG_SYMLINK)
 
 
 def make_link(source: Path, target: Path) -> None:
@@ -48,6 +54,14 @@ def remove_link(target: Path) -> None:
             os.unlink(target)
     else:
         os.unlink(target)
+
+
+def points_to(link: Path, source: Path) -> bool:
+    """True when the link resolves to source (this repository's skill folder)."""
+    try:
+        return link.resolve() == source.resolve()
+    except OSError:
+        return False
 
 
 def _inside_repo(dest: Path) -> bool:
@@ -71,33 +85,46 @@ def main(argv=None) -> int:
             return 2
     names = sorted(p.parent.name for p in SKILLS.glob("*/SKILL.md"))
 
-    refused = False
+    failed = False
     for dest in dests:
         for name in names:
-            target = dest / name
-            if os.path.lexists(target) and not is_link(target):
-                print(f"link_skills.py: error: {target.as_posix()} is not a link; left it in place",
-                      file=sys.stderr)
-                refused = True
+            target, source = dest / name, SKILLS / name
+            where = target.as_posix()
+            exists = os.path.lexists(target)
+            if exists and not is_link(target):
+                print(f"link_skills.py: error: {where} is not a link; left it in place", file=sys.stderr)
+                failed = True
                 continue
-            if args.remove:
-                if not os.path.lexists(target):
+            if exists and not points_to(target, source):
+                if args.remove:
+                    print(f"left {where}: it links to another folder, not this repository")
+                else:
+                    print(f"link_skills.py: error: {where} links to another folder; left it in place",
+                          file=sys.stderr)
+                    failed = True
+                continue
+            try:
+                if args.remove:
+                    if not exists:
+                        continue
+                    if args.dry_run:
+                        print(f"would remove {name} from {dest.as_posix()}")
+                    else:
+                        remove_link(target)
+                        print(f"removed {name} from {dest.as_posix()}")
                     continue
                 if args.dry_run:
-                    print(f"would remove {name} from {dest.as_posix()}")
-                else:
+                    print(f"would link {name} -> {dest.as_posix()}")
+                    continue
+                dest.mkdir(parents=True, exist_ok=True)
+                if exists:
                     remove_link(target)
-                    print(f"removed {name} from {dest.as_posix()}")
-                continue
-            if args.dry_run:
-                print(f"would link {name} -> {dest.as_posix()}")
-                continue
-            dest.mkdir(parents=True, exist_ok=True)
-            if os.path.lexists(target):
-                remove_link(target)
-            make_link(SKILLS / name, target)
-            print(f"linked {name} -> {dest.as_posix()}")
-    return 1 if refused else 0
+                make_link(source, target)
+                print(f"linked {name} -> {dest.as_posix()}")
+            except OSError as exc:
+                print(f"error: {where}: {exc.strerror or exc}", file=sys.stderr)
+                failed = True
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

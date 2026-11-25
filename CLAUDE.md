@@ -110,8 +110,15 @@ python skills/abdullah-docs/scripts/check_docs.py --root . --all --policy docs/D
 After touching `.claude-plugin/plugin.json` or `.claude-plugin/marketplace.json`, also run:
 
 ```
-claude plugin validate . --strict
+claude plugin validate .claude-plugin/marketplace.json --strict
+claude plugin validate .
 ```
+
+The first must pass. The second must pass, and its only warning must be this one, about the maintainer instructions you are reading:
+
+> CLAUDE.md at the plugin root is not loaded as project context.
+
+The separate "plugin directory checks" that follow also print an `ICON_MISSING` warning, which does not change the result. Any other warning is a problem to fix. `claude plugin validate . --strict` fails on the CLAUDE.md warning by design: see [ADR 0003](.agents/adr/0003-plugin-validation-without-strict-mode-at-the-repository-root.md).
 
 ## Releases
 
