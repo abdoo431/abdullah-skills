@@ -97,6 +97,10 @@ def build_context(args) -> tuple:
         findings.append(docs_findings.warning(
             ".", 1, "base", f"base '{base}' does not exist here (fetch it?); checking all files"))
         base = None
+    elif not docs_git.merge_base(root, base):  # e.g. a shallow clone, or unrelated histories
+        findings.append(docs_findings.warning(
+            ".", 1, "base", f"no merge base with '{base}'; checking all files"))
+        base = None
     scope = docs_git.changed_files(root, base) if base and not args.all else None
     return Context(root, settings, base, scope, args.release), findings
 

@@ -98,6 +98,18 @@ class ContentTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any(x.startswith(f"CHANGELOG.md:{entry}: error: changelog:") for x in lines), lines)
 
+    def test_no_merge_base_warns_and_checks_all_files(self):
+        self.repo.orphan("unrelated")
+        self.repo.write("docs/a.md", "See [x](missing.md).\n")
+        self.repo.write("CHANGELOG.md", CHANGELOG + "- misplaced\n")
+        self.repo.commit("unrelated history")
+        code, lines = self.check()
+        self.assertEqual(code, 1)
+        self.assertEqual(lines, [
+            ".:1: warning: base: no merge base with 'main'; checking all files",
+            "docs/a.md:1: error: link: link target does not exist: missing.md",
+        ])
+
     def test_changelog_line_under_unreleased_passes(self):
         self.repo.write("CHANGELOG.md", CHANGELOG.replace("## [Unreleased]\n", "## [Unreleased]\n\n- new\n"))
         self.assertEqual(self.check(), (0, []))

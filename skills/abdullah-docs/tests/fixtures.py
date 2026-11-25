@@ -45,6 +45,10 @@ class Repo:
         """Create the branch from the current one and switch to it."""
         self._must("checkout", "-q", "-b", name)
 
+    def orphan(self, name: str) -> None:
+        """Switch to a new branch with no history (the working tree and index are kept)."""
+        self._must("checkout", "-q", "--orphan", name)
+
     def checkout(self, name: str) -> None:
         self._must("checkout", "-q", name)
 
