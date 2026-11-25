@@ -127,7 +127,8 @@ def check_adr(ctx: Context) -> list:
         linked = {name for _, name in targets}
         for line, name in targets:
             if name not in known:
-                out.append(docs_findings.error(index_rel, line, "adr-index", f"index links {name}, which does not exist"))
+                out.append(docs_findings.error(
+                    index_rel, line, "adr-index", f"index links {name}, which does not exist"))
         for a in adrs:
             if a.name not in linked:
                 out.append(docs_findings.error(
@@ -253,9 +254,11 @@ def check_links(ctx: Context) -> list:
             if link.target and not file.exists():
                 out.append(docs_findings.Finding(
                     path, link.line, sev(link.line), "link", f"link target does not exist: {link.target}"))
-            elif link.anchor and file.is_file() and file.suffix.lower() == ".md"                     and link.anchor.lower() not in slugs(file):
+            elif link.anchor and file.is_file() and file.suffix.lower() == ".md" \
+                    and link.anchor.lower() not in slugs(file):
                 out.append(docs_findings.warning(
-                    path, link.line, "anchor", f"no heading matches anchor #{link.anchor} in {link.target or path}"))
+                    path, link.line, "anchor",
+                    f"no heading matches anchor #{link.anchor} in {link.target or path}"))
     return out
 
 
@@ -284,13 +287,15 @@ def check_changelog(ctx: Context) -> list:
         return [docs_findings.error(rel, 1, "changelog", "no '## [Unreleased]' section")]
     if not ctx.base or ctx.release:
         return []
-    if docs_git.git(ctx.root, "cat-file", "-e", f"{ctx.base}:{rel}") is None:
-        return []  # no changelog at the base: new or imported, nothing to misplace
+    point = docs_git.merge_base(ctx.root, ctx.base)
+    if not point or docs_git.git(ctx.root, "cat-file", "-e", f"{point}:{rel}") is None:
+        return []  # no changelog at the merge base: new or imported, nothing to misplace
     out = []
     for n in sorted(docs_git.added_lines(ctx.root, ctx.base, rel)):
         if n <= len(lines) and n > span[1] and lines[n - 1].strip():
             out.append(docs_findings.error(
-                rel, n, "changelog", "line added below the Unreleased section; move it under Unreleased"))
+                rel, n, "changelog",
+                "line added below the Unreleased section; move it under Unreleased"))
     return out
 
 

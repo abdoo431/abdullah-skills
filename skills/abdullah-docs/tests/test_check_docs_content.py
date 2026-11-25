@@ -180,8 +180,32 @@ class ContentTests(unittest.TestCase):
         (self.repo.root / "CHANGELOG.md").unlink()
         self.repo.commit("drop changelog")
         self.repo.branch("fresh")
-        self.repo.write("CHANGELOG.md", "# Changelog\n\nIntro.\n\n## [Unreleased]\n\n### Added\n\n- one\n")
+        self.repo.write(
+            "CHANGELOG.md",
+            "# Changelog\n\nIntro.\n\n## [Unreleased]\n\n### Added\n\n- one\n\n## [0.1.0]\n\n- first\n")
         self.assertEqual(self.check(), (0, []))
+
+    def test_changelog_created_on_both_sides_after_merge_base(self):
+        self.repo.checkout("main")
+        (self.repo.root / "CHANGELOG.md").unlink()
+        self.repo.commit("drop changelog")
+        self.repo.branch("fresh")
+        self.repo.checkout("main")
+        self.repo.write("CHANGELOG.md", CHANGELOG)
+        self.repo.commit("main adds changelog")
+        self.repo.checkout("fresh")
+        self.repo.write("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n## [0.1.0]\n\n- first\n")
+        self.assertEqual(self.check(), (0, []))
+
+    def test_changelog_deleted_on_base_tip_still_checked(self):
+        self.repo.checkout("main")
+        (self.repo.root / "CHANGELOG.md").unlink()
+        self.repo.commit("main drops changelog")
+        self.repo.checkout("work")
+        self.repo.write("CHANGELOG.md", CHANGELOG + "- misplaced\n")
+        code, lines = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn("CHANGELOG.md:8: error: changelog:", lines[0])
 
     def test_changelog_preamble_edit_passes(self):
         self.repo.write("CHANGELOG.md", CHANGELOG.replace("# Changelog\n", "# Changelog\n\nReworded intro.\n"))
