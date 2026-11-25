@@ -19,6 +19,7 @@ import docs_git  # noqa: E402
 import docs_policy  # noqa: E402
 
 _LINK_RE = re.compile(r"\[[^\]]*\]\(\s*<?([^)>\s]+)")
+_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 
 
 @dataclass
@@ -87,15 +88,15 @@ def build_context(args) -> tuple:
     findings = []
     base = args.base or settings.base or docs_git.default_base(root)
     if not docs_git.is_repo(root):
-        findings.append(docs_findings.warning(".", 1, "base", "not a git repository; checking local files only"))
+        findings.append(docs_findings.warning(".", 1, "base", "not a git repository; checking all files"))
         base = None
     elif not base:
-        findings.append(docs_findings.warning(".", 1, "base", "no base branch found; checking local files only"))
+        findings.append(docs_findings.warning(".", 1, "base", "no base branch found; checking all files"))
     elif not docs_git.ref_exists(root, base):
         findings.append(docs_findings.warning(
-            ".", 1, "base", f"base '{base}' does not exist here (fetch it?); checking local files only"))
+            ".", 1, "base", f"base '{base}' does not exist here (fetch it?); checking all files"))
         base = None
-    scope = None if args.all else docs_git.changed_files(root, base)
+    scope = docs_git.changed_files(root, base) if base and not args.all else None
     return Context(root, settings, base, scope, args.release), findings
 
 
@@ -120,7 +121,7 @@ def check_adr(ctx: Context) -> list:
     if adrs and not index_path.is_file():
         out.append(docs_findings.error(index_rel, 1, "adr-index", "no ADR index; add a README.md linking every ADR"))
     elif index_path.is_file():
-        known = {a.name for a in adrs}
+        known = set(names)
         targets = docs_adr.index_targets(_read(index_path))
         linked = {name for _, name in targets}
         for line, name in targets:
@@ -155,7 +156,7 @@ def check_adr(ctx: Context) -> list:
         elif status[1].lower().startswith("superseded"):
             for target in _LINK_RE.findall(status[1]):
                 rel = target.split("#", 1)[0]
-                if rel and not (ctx.root / folder / rel).resolve().is_file():
+                if rel and not _SCHEME_RE.match(rel) and not (ctx.root / folder / rel).resolve().is_file():
                     out.append(docs_findings.error(
                         path, status[0], "adr-header", f"'Superseded by' link names a missing ADR: {target}"))
         if not docs_adr.date_of(text):
@@ -163,9 +164,23 @@ def check_adr(ctx: Context) -> list:
     return out
 
 
+def _has_heading(text: str) -> bool:
+    fence = None
+    for line in text.splitlines():
+        m = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if m:
+            if fence is None:
+                fence = m.group(1)[0]
+            elif m.group(1)[0] == fence:
+                fence = None
+        elif fence is None and line.rstrip() == docs_policy.AGENT_SECTION_HEADING:
+            return True
+    return False
+
+
 def check_agent_section(ctx: Context) -> list:
     existing = [n for n in ("CLAUDE.md", "AGENTS.md") if (ctx.root / n).is_file()]
-    if any(docs_policy.AGENT_SECTION_HEADING in _read(ctx.root / n) for n in existing):
+    if any(_has_heading(_read(ctx.root / n)) for n in existing):
         return []
     return [docs_findings.warning(
         existing[0] if existing else "AGENTS.md", 1, "agent-section",
@@ -187,6 +202,9 @@ def main(argv=None) -> int:
     ap.add_argument("--history", action="append")
     ap.add_argument("--policy")
     args = ap.parse_args(argv)
+    if not Path(args.root).is_dir():
+        print(f"check_docs.py: error: --root is not a directory: {args.root}", file=sys.stderr)
+        return 2
     try:
         ctx, findings = build_context(args)
     except OSError:

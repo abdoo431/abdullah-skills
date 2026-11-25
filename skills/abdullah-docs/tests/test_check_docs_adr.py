@@ -163,5 +163,66 @@ class CheckDocsAdrTests(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+    def test_index_may_link_the_template(self):
+        self.repo.write("docs/adr/0000-template.md", "# template\n")
+        self.repo.write("docs/adr/README.md", "- [0000](0000-template.md)\n- [0001](0001-a.md)\n- [0002](0002-b.md)\n")
+        self.assertEqual(self.check(), (0, []))
+
+    def test_three_digit_template_link(self):
+        d = Path(self._tmp.name) / "p"
+        d.mkdir()
+        repo = fixtures.Repo(d)
+        repo.write("docs/adr/001-a.md", ADR.format(n="001", s="Accepted"))
+        repo.write("docs/adr/000-template.md", "# t\n")
+        repo.write("docs/adr/README.md", "- [000](000-template.md)\n- [001](001-a.md)\n")
+        repo.write("AGENTS.md", HEAD)
+        repo.commit("i")
+        self.assertEqual(run(repo.root, "--base", "main"), (0, []))
+
+    def test_plain_folder_checks_everything(self):
+        plain = tempfile.TemporaryDirectory()
+        self.addCleanup(plain.cleanup)
+        d = Path(plain.name)
+        (d / "docs/adr").mkdir(parents=True)
+        (d / "docs/adr/0001-a.md").write_text(ADR.format(n="0001", s="Accepted"), encoding="utf-8")
+        code, lines = run(d, "--base", "main")
+        self.assertEqual(code, 1)
+        self.assertEqual(len([x for x in lines if "warning: base" in x]), 1)
+        self.assertTrue(any("error: adr-index" in x for x in lines))
+        ctx, f = check_docs.build_context(make_args(d))
+        self.assertIsNone(ctx.scope)
+        self.assertIn("all files", f[0].message)
+
+    def test_no_base_found_warns_once_and_scope_is_all(self):
+        code, lines = run(self.repo.root)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("warning: base", lines[0])
+        args = make_args(self.repo.root)
+        args.base = None
+        ctx, _ = check_docs.build_context(args)
+        self.assertIsNone(ctx.scope)
+
+    def test_agent_heading_must_be_a_real_heading(self):
+        for text in ("### Documentation (abdullah-docs)\n", "```\n" + HEAD + "```\n", HEAD.rstrip() + " extra\n"):
+            self.repo.write("AGENTS.md", text)
+            code, lines = self.check()
+            self.assertEqual(len(lines), 1, text)
+            self.assertIn("warning: agent-section", lines[0])
+        self.repo.write("AGENTS.md", HEAD.rstrip() + "  \n")
+        self.assertEqual(self.check(), (0, []))
+
+    def test_superseded_by_url_is_not_checked(self):
+        self.adr("0001-a.md", "Superseded by [x](https://example.com/adr)")
+        self.assertEqual(self.check(), (0, []))
+
+    def test_root_must_be_a_directory(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code, _ = run(Path(self._tmp.name) / "missing")
+        self.assertEqual(code, 2)
+        self.assertIn("--root", err.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
