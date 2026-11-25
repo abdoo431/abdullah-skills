@@ -371,6 +371,7 @@ CHECKS: list = [check_adr, check_agent_section, check_links, check_code_paths, c
 
 
 def main(argv=None) -> int:
+    docs_findings.use_utf8_output()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", default=".")
     ap.add_argument("--base")

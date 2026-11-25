@@ -1,4 +1,5 @@
 """Findings shared by the abdullah-docs scripts."""
+import sys
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -10,6 +11,14 @@ class Finding:
     severity: str
     kind: str
     message: str
+
+
+def use_utf8_output() -> None:
+    """Print UTF-8 whatever the console code page is, replacing what cannot be encoded."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            reconfigure(encoding="utf-8", errors="replace")
 
 
 def warning(path: str, line: int, kind: str, message: str) -> Finding:

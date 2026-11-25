@@ -101,9 +101,9 @@ def files_at(root: Path, ref: str, directory: str) -> list[str]:
 
 
 def tracked_files(root: Path, pattern: str) -> list[str]:
-    """Tracked files matching a git pathspec glob; walks the folder when not a repository."""
+    """Tracked and untracked, non-ignored files matching a git pathspec glob; walks the folder outside a repository."""
     if is_repo(root):
-        return sorted(_lines(git(root, "ls-files", "--", pattern)))
+        return sorted(set(_lines(git(root, "ls-files", "--cached", "--others", "--exclude-standard", "--", pattern))))
     root = Path(root)
     found = []
     for dirpath, dirnames, filenames in os.walk(root):

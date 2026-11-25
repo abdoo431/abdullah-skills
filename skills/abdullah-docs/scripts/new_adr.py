@@ -45,6 +45,7 @@ def _numbered_h1(adr_dir: Path, local: list) -> bool:
 
 
 def main(argv=None) -> int:
+    docs_findings.use_utf8_output()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", default=".")
     ap.add_argument("--title", required=True)

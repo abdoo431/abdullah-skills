@@ -54,6 +54,7 @@ def _new_files(root: Path, point: str | None) -> set[str]:
 
 
 def main(argv=None) -> int:
+    docs_findings.use_utf8_output()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", default=".")
     ap.add_argument("--base")
