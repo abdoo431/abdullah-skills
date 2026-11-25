@@ -58,6 +58,33 @@ class FrontMatterTests(unittest.TestCase):
         path = self.write_skill('---\nname: demo\ndescription: "Use when: always"\n---\n')
         self.assertEqual(check_frontmatter.check_skill(path), [])
 
+    def test_empty_quoted_description(self):
+        path = self.write_skill('---\nname: demo\ndescription: ""\n---\n')
+        problems = check_frontmatter.check_skill(path)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("`description`", problems[0])
+
+    def test_empty_quoted_name(self):
+        path = self.write_skill('---\nname: ""\ndescription: Does a thing.\n---\n')
+        problems = check_frontmatter.check_skill(path)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("`name`", problems[0])
+
+    def test_cli_walks_nested_skills(self):
+        self.write_skill("# nothing\n", folder="group/deep")
+        script = str(SCRIPTS / "check_frontmatter.py")
+        res = subprocess.run([sys.executable, script, "--root", str(self.root)],
+                             capture_output=True, text=True)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("skills/group/deep/SKILL.md: no front matter", res.stdout)
+
+    def test_cli_missing_skills_folder(self):
+        script = str(SCRIPTS / "check_frontmatter.py")
+        res = subprocess.run([sys.executable, script, "--root", str(self.root)],
+                             capture_output=True, text=True)
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("skills", res.stderr)
+
     def test_cli_exit_codes(self):
         self.write_skill("---\nname: demo\ndescription: Does a thing.\n---\n")
         script = str(SCRIPTS / "check_frontmatter.py")

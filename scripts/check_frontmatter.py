@@ -14,7 +14,14 @@ def _front_matter_lines(text):
     return None
 
 
-def check_skill(path):
+def _unquote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    return value.strip()
+
+
+def check_skill(path: Path) -> list[str]:
     """Return a list of problem messages for one SKILL.md (empty when clean)."""
     path = Path(path)
     text = path.read_bytes().decode("utf-8", errors="replace").lstrip("\ufeff")
@@ -37,23 +44,28 @@ def check_skill(path):
             problems.append(f"`{key}` contains ': ' and must be quoted")
 
     for required in ("name", "description"):
-        if not fields.get(required):
+        if not _unquote(fields.get(required, "")):
             problems.append(f"missing `{required}`")
 
-    name = fields.get("name", "").strip("\"'")
+    name = _unquote(fields.get("name", ""))
     if name and name != path.parent.name:
         problems.append(f"name `{name}` does not match folder `{path.parent.name}`")
     return problems
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="repository root")
     args = parser.parse_args(argv)
     root = Path(args.root).resolve()
 
+    skills_dir = root / "skills"
+    if not skills_dir.is_dir():
+        print(f"skills folder not found: {skills_dir.as_posix()}", file=sys.stderr)
+        return 2
+
     failed = False
-    for skill in sorted((root / "skills").glob("*/SKILL.md")):
+    for skill in sorted(skills_dir.rglob("SKILL.md")):
         rel = skill.relative_to(root).as_posix()
         for problem in check_skill(skill):
             print(f"{rel}: {problem}")
