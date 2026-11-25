@@ -1,0 +1,31 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: ${{ matrix.os }}, Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Front matter
+        run: python scripts/check_frontmatter.py --root .
+      - name: Skill tests
+        run: python -m unittest discover -s skills/abdullah-docs/tests -t skills/abdullah-docs -v
+      - name: Repository tests
+        run: python -m unittest discover -s tests -v
+      - name: Documentation check
+        run: python skills/abdullah-docs/scripts/check_docs.py --root . --all --policy docs/DOCUMENTATION.md

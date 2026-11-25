@@ -1,0 +1,12 @@
+{
+  "name": "abdullah-skills",
+  "version": "0.1.0",
+  "description": "Agent skills for traceable project documentation and, next, versioning.",
+  "author": {
+    "name": "Abdullah Hassan"
+  },
+  "repository": "https://github.com/abdoo431/abdullah-skills",
+  "license": "MIT",
+  "keywords": ["documentation", "adr", "changelog", "skills"],
+  "skills": ["./skills/abdullah-docs", "./skills/setup-abdullah-docs"]
+}
