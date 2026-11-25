@@ -77,8 +77,16 @@ def has_placeholder(text: str) -> bool:
     return any(p in text for p in PLACEHOLDERS)
 
 
+# A first segment like `github.com` or `example.org`: lower-case labels ending in a TLD-like label.
+# `.github` (no label before the dot) and `Acme.Api` (upper case) are folder names, not hosts.
+_HOST_RE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,6}$")
+
+
 def is_repo_path(token: str) -> bool:
-    if not token or has_placeholder(token) or any(c in token for c in "<>*") or any(c.isspace() for c in token):
+    if not token or has_placeholder(token) or any(c in token for c in "<>*$%{}=@") \
+            or any(c.isspace() for c in token):
+        return False
+    if "/" in token and _HOST_RE.match(token.split("/", 1)[0]):
         return False
     if "://" in token or token.startswith(("/", "~", "\\")):
         return False

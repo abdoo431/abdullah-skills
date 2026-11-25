@@ -64,6 +64,13 @@ class CodePathTests(unittest.TestCase):
                     "C:/x/y.md", "~/a/b.md", "nofolder.md", "a/b"]:
             self.assertFalse(is_repo_path(bad), bad)
 
+    def test_variables_options_and_hosts_are_not_paths(self):
+        for bad in ["$HOME/.config/foo.toml", "{project}/README.md", "%APPDATA%/x/y.json",
+                    "github.com/owner/repo.git", "user@host:dir/x.sh", "--out=dist/x.json", "key=a/b.c"]:
+            self.assertFalse(is_repo_path(bad), bad)
+        for ok in ["Acme.Api/Hosting/WebApp.cs", ".github/workflows/check.yml", ".agents/adr/README.md"]:
+            self.assertTrue(is_repo_path(ok), ok)
+
 
 class SlugTests(unittest.TestCase):
     def test_slugs(self):

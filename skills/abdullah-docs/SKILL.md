@@ -104,7 +104,7 @@ Run it at the end of every task that touched code or docs, and before opening a 
    - `changelog`: no `[Unreleased]` section, or a line was added below it ([reference/changelog.md](reference/changelog.md)).
    - `pair`: a document lacks its counterpart in the other language, or changed without it.
    - `agent-section` (a warning): neither `CLAUDE.md` nor `AGENTS.md` has the section. Offer it once, as in step 0.
-4. Run `check_docs.py` again until it reports no errors. Fix warnings in files you changed; list the rest.
+4. Run `check_docs.py` again until it reports no errors. Fix warnings in files you changed; list the rest. A finding on text that is correct is a false positive: never edit correct text to silence it. Either add the file to the policy's `examples` setting (for code paths that describe other projects), with the owner's agreement, or list the finding in your final message as a false positive with one line on why.
 5. Run `pr_checklist.py --root <repo>`. Use its lines to fill the pull request template honestly.
 6. In your final message, list each definition-of-done item with its status: done (where), not needed (why), or missing.
 
