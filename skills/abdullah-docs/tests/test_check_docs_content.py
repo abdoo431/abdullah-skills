@@ -167,10 +167,25 @@ class ContentTests(unittest.TestCase):
         self.assertIn("docs/plans/p.md:1: warning: link:", lines[0])
 
     def test_crlf_line_numbers(self):
+        self.repo.write("CHANGELOG.md", CHANGELOG + "- misplaced\n")
+        lf = self.check()
         self.repo.write("CHANGELOG.md", CHANGELOG + "- misplaced\n", newline="\r\n")
-        code, lines = self.check()
-        self.assertEqual(code, 1)
-        self.assertIn("CHANGELOG.md:8: error: changelog:", lines[0])
+        crlf = self.check()
+        self.assertEqual(crlf[0], 1)
+        self.assertIn("CHANGELOG.md:8: error: changelog:", crlf[1][0])
+        self.assertEqual(crlf, lf)
+
+    def test_new_changelog_passes(self):
+        self.repo.checkout("main")
+        (self.repo.root / "CHANGELOG.md").unlink()
+        self.repo.commit("drop changelog")
+        self.repo.branch("fresh")
+        self.repo.write("CHANGELOG.md", "# Changelog\n\nIntro.\n\n## [Unreleased]\n\n### Added\n\n- one\n")
+        self.assertEqual(self.check(), (0, []))
+
+    def test_changelog_preamble_edit_passes(self):
+        self.repo.write("CHANGELOG.md", CHANGELOG.replace("# Changelog\n", "# Changelog\n\nReworded intro.\n"))
+        self.assertEqual(self.check(), (0, []))
 
 
 if __name__ == "__main__":

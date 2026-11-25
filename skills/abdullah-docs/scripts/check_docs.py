@@ -284,11 +284,13 @@ def check_changelog(ctx: Context) -> list:
         return [docs_findings.error(rel, 1, "changelog", "no '## [Unreleased]' section")]
     if not ctx.base or ctx.release:
         return []
+    if docs_git.git(ctx.root, "cat-file", "-e", f"{ctx.base}:{rel}") is None:
+        return []  # no changelog at the base: new or imported, nothing to misplace
     out = []
     for n in sorted(docs_git.added_lines(ctx.root, ctx.base, rel)):
-        if 1 <= n <= len(lines) and lines[n - 1].strip() and not span[0] <= n <= span[1]:
+        if n <= len(lines) and n > span[1] and lines[n - 1].strip():
             out.append(docs_findings.error(
-                rel, n, "changelog", "line added outside the Unreleased section; move it under Unreleased"))
+                rel, n, "changelog", "line added below the Unreleased section; move it under Unreleased"))
     return out
 
 
