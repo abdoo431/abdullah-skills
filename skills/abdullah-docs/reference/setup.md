@@ -40,7 +40,7 @@ The profile table is in [policy-default.md](policy-default.md#profiles).
 
 Show the owner, in full:
 
-1. **The policy**, adapted from [policy-default.md](policy-default.md). It carries the profile line and the settings block (see [The settings block](#the-settings-block)). It describes the project's real layout.
+1. **The policy**, adapted from [policy-default.md](policy-default.md). It carries the profile line and the settings block (see [The settings block](#the-settings-block)). It describes the project's real layout. Before showing it, check that every backticked path in it either exists or will be written by this setup; a document the profile does not create yet is named without a backticked path.
 2. **The map**, from [../templates/docs-map.md](../templates/docs-map.md). Keep only rows for documents that exist or that this setup will write.
 3. **The agent-instructions section**, from [../templates/agent-section.md](../templates/agent-section.md), with `{policy}` replaced by the policy's path.
 4. **The list of documents** this setup would write, each with the source of its content (which files or commits).

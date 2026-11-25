@@ -65,7 +65,7 @@ This project uses the profile named on the `Documentation profile:` line above.
 | ADRs | `docs/adr/` | `NNNN-<title>.md`, listed in `docs/adr/README.md` |
 | Specs | `docs/superpowers/specs/` | `YYYY-MM-DD-<topic>-design.md` |
 | Plans | `docs/superpowers/plans/` | `YYYY-MM-DD-<topic>.md` |
-| Architecture overview | `docs/architecture.md` | |
+| Architecture overview | `docs/` | architecture.md, written when there is more than one component |
 | Runbooks | `docs/runbooks/` | `<procedure>.md` |
 | Incident records | `docs/incidents/` | `YYYY-MM-DD-<summary>.md` |
 | READMEs | The root of each project or package | `README.md` |

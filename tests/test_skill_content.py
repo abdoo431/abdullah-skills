@@ -95,6 +95,31 @@ class SkillContentTests(unittest.TestCase):
             with self.subTest(path=path.relative_to(REPO).as_posix()):
                 self.assertIsNone(names.search(_read(path)))
 
+    def test_default_policy_passes_the_check_on_a_lean_single_component_project(self):
+        policy = _read(DOCS_SKILL / "reference" / "policy-default.md")
+        policy = re.sub(r"(?m)^(Documentation profile:).*$", r"\1 lean", policy)
+        files = {
+            "docs/DOCUMENTATION.md": policy,
+            "docs/README.md": "# Documentation map\n",
+            "docs/adr/README.md": "# ADRs\n\n| Number | Title | Status |\n|---|---|---|\n",
+            "docs/adr/0000-template.md": "# NNNN. Title\n\n- **Status:** Proposed · **Date:** YYYY-MM-DD\n",
+            "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n",
+            "docs/runbooks/build-run-test.md": "# Build, run, test\n",
+            "CLAUDE.md": "# Agent instructions\n\n" + docs_policy.AGENT_SECTION_HEADING + "\n",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            for rel, text in files.items():
+                path = Path(tmp) / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(text.encode("utf-8"))
+            res = subprocess.run(
+                [sys.executable, str(DOCS_SKILL / "scripts" / "check_docs.py"), "--root", tmp, "--all",
+                 "--policy", "docs/DOCUMENTATION.md"],
+                capture_output=True, text=True)
+        self.assertNotEqual(res.returncode, 2, res.stderr)
+        errors = [line for line in res.stdout.splitlines() if ": error: " in line]
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()
