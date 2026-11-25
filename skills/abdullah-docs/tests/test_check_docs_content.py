@@ -98,6 +98,16 @@ class ContentTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any(x.startswith(f"CHANGELOG.md:{entry}: error: changelog:") for x in lines), lines)
 
+    def test_release_move_passes_without_release_flag(self):
+        self.repo.write("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n- one\n- two\n\n## [0.4.0]\n\n- old entry\n")
+        self.repo.commit("entries")
+        self.repo.branch("release")
+        self.repo.write(
+            "CHANGELOG.md",
+            "# Changelog\n\n## [Unreleased]\n\n## [0.5.0] - 2026-11-25\n\n- one\n- two, reworded\n\n"
+            "## [0.4.0]\n\n- old entry\n")
+        self.assertEqual(run(self.repo.root, "--base", "work"), (0, []))
+
     def test_no_merge_base_warns_and_checks_all_files(self):
         self.repo.orphan("unrelated")
         self.repo.write("docs/a.md", "See [x](missing.md).\n")
@@ -109,6 +119,20 @@ class ContentTests(unittest.TestCase):
             ".:1: warning: base: no merge base with 'main'; checking all files",
             "docs/a.md:1: error: link: link target does not exist: missing.md",
         ])
+
+    def test_changelog_placement_with_root_on_a_sub_folder(self):
+        mono = Path(self._tmp.name) / "mono"  # a second repository, with no CHANGELOG.md at the top
+        mono.mkdir()
+        repo = fixtures.Repo(mono)
+        repo.write("app/AGENTS.md", HEAD)
+        repo.write("app/CHANGELOG.md", CHANGELOG)
+        repo.commit("app")
+        repo.branch("work")
+        repo.write("app/CHANGELOG.md", CHANGELOG + "- misplaced\n")
+        code, lines = run(repo.root / "app", "--base", "main")
+        self.assertEqual(code, 1)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn("CHANGELOG.md:8: error: changelog:", lines[0])
 
     def test_changelog_line_under_unreleased_passes(self):
         self.repo.write("CHANGELOG.md", CHANGELOG.replace("## [Unreleased]\n", "## [Unreleased]\n\n- new\n"))

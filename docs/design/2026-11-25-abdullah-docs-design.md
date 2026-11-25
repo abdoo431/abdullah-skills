@@ -239,7 +239,7 @@ Checks the files changed since `--base` by default; `--all` checks every documen
 | ADR header | An ADR has no status or date; a `Superseded by` link points to a missing ADR |
 | Links | A relative Markdown link points to a missing file. Anchors are checked against headings and reported as warnings |
 | Code paths | A backticked or linked repository path (has `/` and an extension; not a URL; no `<`, `>` or `*`) does not exist. Paths only (D5) |
-| Changelog | There is no `[Unreleased]` section; or a line added since the base lies outside it, unless `--release` (C6) |
+| Changelog | There is no `[Unreleased]` section; or a line added since the base lies outside it, unless `--release` (C6) or the line sits in a version section whose heading the branch also adds (a release) |
 | Pairs | With `--pairs`, a document has no counterpart in the other language, or one changed since the base and its counterpart did not. Off by default, for projects whose policy requires translations |
 | Agent section | Neither `CLAUDE.md` nor `AGENTS.md` carries the section (§6.5). A warning |
 

@@ -307,6 +307,14 @@ def check_code_paths(ctx: Context) -> list:
     return out
 
 
+def _section_heading(lines: list, n: int):
+    """1-based line number of the `## ` heading whose section holds line n (n itself if it is one)."""
+    for i in range(n - 1, -1, -1):
+        if lines[i].startswith("## "):
+            return i + 1
+    return None
+
+
 def check_changelog(ctx: Context) -> list:
     rel = _changelog_rel(ctx)
     if not rel or not (ctx.root / rel).is_file():
@@ -318,11 +326,15 @@ def check_changelog(ctx: Context) -> list:
     if not ctx.base or ctx.release:
         return []
     point = docs_git.merge_base(ctx.root, ctx.base)
-    if not point or docs_git.git(ctx.root, "cat-file", "-e", f"{point}:{rel}") is None:
+    # `./` resolves rel from the current directory (the root), not the repository top.
+    if not point or docs_git.git(ctx.root, "cat-file", "-e", f"{point}:./{rel}") is None:
         return []  # no changelog at the merge base: new or imported, nothing to misplace
+    added = docs_git.added_lines(ctx.root, ctx.base, rel)
     out = []
-    for n in sorted(docs_git.added_lines(ctx.root, ctx.base, rel)):
+    for n in sorted(added):
         if n <= len(lines) and n > span[1] and lines[n - 1].strip():
+            if _section_heading(lines, n) in added:
+                continue  # a release adds its version heading; a merge-moved entry does not
             out.append(docs_findings.error(
                 rel, n, "changelog",
                 "line added below the Unreleased section; move it under Unreleased"))
