@@ -115,6 +115,30 @@ def tracked_files(root: Path, pattern: str) -> list[str]:
     return sorted(found)
 
 
+def repo_files(root: Path) -> list[str]:
+    """Every file in the working tree except ignored ones (tracked and untracked)."""
+    if is_repo(root):
+        out = git(root, "ls-files", "--cached", "--others", "--exclude-standard")
+        return sorted({p for p in _lines(out) if (Path(root) / p).is_file()})
+    return tracked_files(root, "*")
+
+
+def ignored(root: Path, paths: list[str]) -> set[str]:
+    """The subset of paths that .gitignore ignores, checked in one batch; empty outside a repository."""
+    if not paths or not is_repo(root):
+        return set()
+    try:
+        proc = subprocess.run(
+            ["git", "--no-pager", "check-ignore", "--no-index", "-z", "--stdin"],
+            cwd=root, input="\x00".join(paths) + "\x00", capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0"),
+        )
+    except (OSError, ValueError):
+        return set()
+    return {p for p in proc.stdout.split("\x00") if p}
+
+
 def commits_since(root: Path, base: str | None) -> list[str]:
     """Full commit messages from the merge base to HEAD, oldest first."""
     mb = merge_base(root, base) if base else None

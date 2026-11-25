@@ -220,10 +220,26 @@ def _outside(span, line: int) -> bool:
     return span is not None and not span[0] <= line <= span[1]
 
 
+def _is_adr_template(ctx: Context, path: str) -> bool:
+    folder, _, name = path.rpartition("/")
+    return (folder or ".") == _adr_rel(ctx) and name in ("0000-template.md", "template.md")
+
+
 def _markdown_files(ctx: Context) -> list:
     if ctx.scope is None:
-        return [p for p in docs_git.tracked_files(ctx.root, "*.md") if (ctx.root / p).is_file()]
-    return sorted(p for p in ctx.scope if p.endswith(".md") and (ctx.root / p).is_file())
+        found = [p for p in docs_git.tracked_files(ctx.root, "*.md") if (ctx.root / p).is_file()]
+    else:
+        found = sorted(p for p in ctx.scope if p.endswith(".md") and (ctx.root / p).is_file())
+    return [p for p in found if not _is_adr_template(ctx, p)]
+
+
+def _path_suffixes(files) -> set:
+    """Every path-segment suffix of every file, so `Hosting/App.cs` matches `src/Api/Hosting/App.cs`."""
+    out = set()
+    for f in files:
+        parts = f.split("/")
+        out.update("/".join(parts[i:]) for i in range(len(parts)))
+    return out
 
 
 def _exists_from(ctx: Context, path: str, target: str) -> bool:
@@ -248,7 +264,7 @@ def check_links(ctx: Context) -> list:
             return "warning" if _outside(span, line) else severity_for(ctx, path)
 
         for link in docs_markdown.links(text):
-            if link.target.startswith("/"):
+            if link.target.startswith("/") or docs_markdown.has_placeholder(link.target):
                 continue
             file = ctx.root / path if not link.target else (ctx.root / path).parent / link.target
             if link.target and not file.exists():
@@ -264,16 +280,26 @@ def check_links(ctx: Context) -> list:
 
 def check_code_paths(ctx: Context) -> list:
     out = []
+    suffixes = None
     for path in _markdown_files(ctx):
         if any(fnmatch.fnmatch(path, g) for g in ctx.settings.examples):
             continue
         text = _read(ctx.root / path)
         span = _history_span(ctx, path, text)
+        missing = []
         for line, token in docs_markdown.code_paths(text):
+            token = token.removeprefix("./")
             if (ctx.root / token).exists() or _exists_from(ctx, path, token):
                 continue
-            severity = "warning" if _outside(span, line) else severity_for(ctx, path)
-            out.append(docs_findings.Finding(path, line, severity, "code-path", f"path does not exist: {token}"))
+            if suffixes is None:
+                suffixes = _path_suffixes(docs_git.repo_files(ctx.root))
+            if token not in suffixes:
+                missing.append((line, token))
+        gone = {t for _, t in missing} - docs_git.ignored(ctx.root, sorted({t for _, t in missing}))
+        for line, token in missing:
+            if token in gone:
+                severity = "warning" if _outside(span, line) else severity_for(ctx, path)
+                out.append(docs_findings.Finding(path, line, severity, "code-path", f"path does not exist: {token}"))
     return out
 
 

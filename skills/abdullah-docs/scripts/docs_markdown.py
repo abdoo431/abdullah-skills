@@ -69,8 +69,15 @@ def links(text: str) -> list:
     return result
 
 
+PLACEHOLDERS = ("X.Y.Z", "NNNN", "YYYY", "yyyy", "MM-dd", "MM-DD", "HHmm", "…")
+
+
+def has_placeholder(text: str) -> bool:
+    return any(p in text for p in PLACEHOLDERS)
+
+
 def is_repo_path(token: str) -> bool:
-    if not token or any(c in token for c in "<>*") or any(c.isspace() for c in token):
+    if not token or has_placeholder(token) or any(c in token for c in "<>*") or any(c.isspace() for c in token):
         return False
     if "://" in token or token.startswith(("/", "~", "\\")):
         return False
@@ -81,7 +88,7 @@ def is_repo_path(token: str) -> bool:
     last = token.rstrip("/").rsplit("/", 1)[-1]
     if token.endswith("/"):
         return False
-    return bool(re.search(r"[^.]\.[A-Za-z0-9]+$", last))
+    return bool(re.search(r"[^.]\.[A-Za-z][A-Za-z0-9]*$", last))
 
 
 def code_paths(text: str) -> list:
