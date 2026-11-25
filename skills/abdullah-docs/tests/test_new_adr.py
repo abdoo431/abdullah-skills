@@ -183,6 +183,42 @@ class NewAdrTests(unittest.TestCase):
         self.assertIn(b"- [0002](0002-b.md) B\r\n", raw)
         self.assertNotIn(b"\n", raw.replace(b"\r\n", b""))
 
+    def test_missing_root_is_a_usage_error(self):
+        missing = self.tmp / "typo"
+        proc = run(missing, "--title", "X")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("--root is not a directory", proc.stderr)
+        self.assertFalse(missing.exists())
+
+    def test_refuses_an_index_that_is_not_utf8(self):
+        (self.tmp / "docs/adr").mkdir(parents=True)
+        (self.tmp / "docs/adr/0001-a.md").write_text("# 1. A\n", encoding="utf-8")
+        raw = b"# ADRs\n\n- [0001](0001-a.md) Caf\xe9\n"  # Latin-1, not UTF-8
+        (self.tmp / "docs/adr/README.md").write_bytes(raw)
+        proc = run(self.tmp, "--title", "B")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("docs/adr/README.md: not UTF-8; convert it to UTF-8 first", proc.stderr)
+        self.assertEqual((self.tmp / "docs/adr/README.md").read_bytes(), raw)
+        self.assertEqual(sorted(p.name for p in (self.tmp / "docs/adr").iterdir()), ["0001-a.md", "README.md"])
+
+    def test_index_keeps_its_bom(self):
+        (self.tmp / "docs/adr").mkdir(parents=True)
+        (self.tmp / "docs/adr/0001-a.md").write_text("# 1. A\n", encoding="utf-8")
+        (self.tmp / "docs/adr/README.md").write_bytes(b"\xef\xbb\xbf# ADRs\n\n- [0001](0001-a.md) A\n")
+        proc = run(self.tmp, "--title", "B")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        raw = (self.tmp / "docs/adr/README.md").read_bytes()
+        self.assertTrue(raw.startswith(b"\xef\xbb\xbf# ADRs"), raw[:10])
+        self.assertEqual(raw.count(b"\xef\xbb\xbf"), 1)
+        self.assertIn(b"- [0002](0002-b.md) B\n", raw)
+
+    def test_title_without_ascii_letters_names_the_reason(self):
+        arabic = "".join(map(chr, (0x642, 0x631, 0x627, 0x631)))  # no ASCII letter or digit
+        proc = run(self.tmp, "--title", arabic)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("at least one ASCII letter or digit (the file name is built from them)", proc.stderr)
+        self.assertFalse((self.tmp / "docs").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

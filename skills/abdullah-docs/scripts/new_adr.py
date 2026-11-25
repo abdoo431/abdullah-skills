@@ -4,6 +4,7 @@ Prints only the new file's repository path on stdout; warnings go to stderr.
 Exit codes: 0 done, 2 usage error (nothing is written).
 """
 import argparse
+import codecs
 import os
 import re
 import sys
@@ -56,6 +57,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     root = Path(args.root).resolve()
+    if not root.is_dir():
+        return _fail(f"--root is not a directory: {args.root}")
     title = " ".join(args.title.split())
     if not title:
         return _fail("--title must not be empty")
@@ -82,7 +85,7 @@ def main(argv=None) -> int:
 
     slug = docs_adr.slugify(title)
     if not slug:
-        return _fail("--title needs at least one letter or digit")
+        return _fail("--title needs at least one ASCII letter or digit (the file name is built from them)")
 
     base = args.base or settings.base or docs_git.default_base(root)
     base_names: list[str] = []
@@ -101,7 +104,15 @@ def main(argv=None) -> int:
 
     index_path = adr_dir / "README.md"
     index_rel = f"{adr_rel}/README.md" if adr_rel != "." else "README.md"
-    index_text = _read(index_path) if index_path.is_file() else NEW_INDEX
+    bom = b""
+    index_text = NEW_INDEX
+    if index_path.is_file():
+        raw = index_path.read_bytes()
+        try:
+            index_text = raw.decode("utf-8-sig")  # strict: writing back replaced bytes would corrupt the index
+        except UnicodeDecodeError:
+            return _fail(f"{index_rel}: not UTF-8; convert it to UTF-8 first")
+        bom = codecs.BOM_UTF8 if raw.startswith(codecs.BOM_UTF8) else b""
     try:
         new_index = docs_adr.insert_index_row(index_text, number_s, name, title)
     except docs_adr.IndexFormatError:
@@ -116,7 +127,7 @@ def main(argv=None) -> int:
 
     adr_dir.mkdir(parents=True, exist_ok=True)
     (adr_dir / name).write_bytes(body.encode("utf-8"))
-    index_path.write_bytes(new_index.encode("utf-8"))
+    index_path.write_bytes(bom + new_index.encode("utf-8"))
     print(f"{adr_rel}/{name}" if adr_rel != "." else name)
     return 0
 

@@ -35,8 +35,9 @@ If one is missing, the decision belongs in a commit message, a code comment or a
 3. If it exits 2, it wrote nothing. Read its message. The causes:
    - **The index is in an unknown shape** (neither a table nor a list of links). Add the row by hand, or propose turning the index into a table.
    - **The ADR folder holds ADR-like files it cannot number** (for example `ADR-007-use-redis.md` or `7_use_redis.md`), common in an adopted layout. Propose renaming them to `NNNN-<title>.md` and rename only with the owner's agreement, or pass `--adr-dir` for the folder that holds the numbered ADRs.
-   - **The title is empty**, or has no letter or digit.
-   - **The policy file named by `--policy` does not exist.**
+   - **The index is not UTF-8.** Convert it to UTF-8, then run the script again.
+   - **The title is empty**, or has no ASCII letter or digit (the file name is built from them).
+   - **The policy file named by `--policy` does not exist**, or `--root` is not a directory.
 4. Fill every section from facts: the code, the history, the conversation. Write anything you cannot confirm as `> Needs confirmation: <question>`.
 5. Link the ADR from where the project uses such links: the related README, the changelog entry, and the commit's `Refs:` line.
 6. Change `Proposed` to `Accepted` only when the owner accepts the decision. Update the status in the index too.
