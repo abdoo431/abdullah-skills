@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Install routes: Claude Code, Codex and `npx skills` are marked tested against the published repository, with the agent versions used; Copilot and Gemini stay untested. The `npx skills` route shows the command that installs without prompts.
+
 ## [0.1.0] - 2026-11-25
 
 ### Added
