@@ -12,7 +12,7 @@ Read the profile from the policy's `Documentation profile:` line. No line means 
 2. **Surprising without context.** A new reader would ask "why was it done this way?"
 3. **The result of a real trade-off.** There were other reasonable options, and something was given up.
 
-If one is missing, the decision belongs in a commit message, a code comment or a spec, not an ADR. A `lean` ADR may be one paragraph: use `--short`.
+If one is missing, the decision belongs in a commit message, a code comment or a spec, not an ADR. A `lean` ADR may be one paragraph: use `--short`, unless the project has its own ADR template.
 
 **`full`:** write one for every significant technical decision, as the policy defines it (by default: a framework, a data store, a public interface or protocol, a dependency with lock-in, a deployment or security approach). Use the full template.
 

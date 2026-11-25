@@ -105,7 +105,7 @@ python -m unittest discover -s tests -v
 python skills/abdullah-docs/scripts/check_docs.py --root . --all --policy docs/DOCUMENTATION.md
 ```
 
-`check_docs.py --all` lists files with `git ls-files`, so stage new documents (`git add`) before running it. Without a fetched `origin/main` it prints one `warning: base` finding; that is expected.
+`check_docs.py --all` checks tracked and untracked files, except those `.gitignore` ignores. Without a fetched `origin/main` it prints one `warning: base` finding; that is expected.
 
 After touching `.claude-plugin/plugin.json` or `.claude-plugin/marketplace.json`, also run:
 
