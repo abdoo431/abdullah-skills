@@ -101,7 +101,7 @@ def main(argv=None) -> int:
 
     spec = [f for f in changed
             if any(_under([f], d) for d in (settings.adr_dir, settings.specs, settings.plans))]
-    changelog = settings.changelog.replace("\\", "/").strip("/")
+    changelog = settings.changelog.replace("\\", "/").removeprefix("./")  # as check_docs.py reads it
     sources = [f for f in changed if _is_source(f)]
     new_sources = [f for f in new if _is_source(f)]
     tests = [f for f in changed if _is_test(f)]

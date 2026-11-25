@@ -68,6 +68,13 @@ class PrChecklistTests(unittest.TestCase):
         self.assertEqual(lines[1], "- changelog: changed (1 source files changed)")
         self.assertEqual(lines[5], "- commit-refs: all commits reference")
 
+    def test_changelog_path_with_leading_dot_slash(self):
+        self.repo.write("DOCUMENTATION.md", "```abdullah-docs\nchangelog: ./CHANGELOG.md\n```\n")
+        self.repo.write("CHANGELOG.md", "# Changelog\n- x\n")
+        self.repo.commit("docs: entry")
+        lines = run(self.repo.root, "--base", "main").stdout.splitlines()
+        self.assertEqual(lines[1], "- changelog: changed (0 source files changed)")
+
     def test_deleted_files_do_not_count(self):
         (self.repo.root / "src/old.py").unlink()
         self.repo.commit("refactor: drop old")
