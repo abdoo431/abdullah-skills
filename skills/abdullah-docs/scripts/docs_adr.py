@@ -168,7 +168,7 @@ def insert_index_row(text: str, number: str, name: str, title: str) -> str:
             status_idx = next(
                 (k for k, c in enumerate(header) if "status" in c.lower() and k != link_idx and k < len(cells)), None
             )
-        else:
+        if status_idx is None:
             status_idx = next((k for k, c in enumerate(cells) if k != link_idx and _STATUS_WORD_RE.match(c)), None)
         title_idx = next(
             (k for k, c in enumerate(cells) if k not in (link_idx, status_idx) and c), None
@@ -202,7 +202,7 @@ def insert_index_row(text: str, number: str, name: str, title: str) -> str:
 
 def _field(text: str, key: str) -> Optional[tuple[int, str, int, int]]:
     pattern = re.compile(
-        rf"(?:^\s*(?:[-*+]\s+)?|\u00b7\s*)(?:\*\*|__)?{key}(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(.*?)\s*(?:\s\u00b7\s|$)",
+        rf"(?:^\s*(?:[-*+]\s+)?|\u00b7\s*)(?:\*\*|__)?{key}(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(.*?)\s*(?:\u00b7|\*\*\w+:|$)",
         re.I,
     )
     heading = re.compile(rf"^#{{2,}}\s+{key}\s*$", re.I)
@@ -214,6 +214,8 @@ def _field(text: str, key: str) -> Optional[tuple[int, str, int, int]]:
         if heading.match(line.rstrip()):
             for j in range(i, len(lines)):
                 value = lines[j].strip()
+                if value.startswith("#"):
+                    return None
                 if value:
                     start = len(lines[j]) - len(lines[j].lstrip())
                     return j + 1, value, start, start + len(value)
@@ -247,6 +249,16 @@ def render(template: str, number: str, title: str, today: str, numbered_h1: bool
         lines = text.split("\n")
         line = lines[f[0] - 1]
         lead = " " if f[2] > 0 and not line[f[2] - 1].isspace() else ""
-        lines[f[0] - 1] = line[: f[2]] + lead + "Proposed" + line[f[3]:]
+        tail = " " if f[3] < len(line) and not line[f[3]].isspace() else ""
+        lines[f[0] - 1] = line[: f[2]] + lead + "Proposed" + tail + line[f[3]:]
         text = "\n".join(lines)
+    else:
+        lines = text.split("\n")
+        h = next((i for i, ln in enumerate(lines) if re.match(r"^#{2,}\s+Status\s*$", ln.rstrip())), None)
+        if h is not None:
+            if h + 1 < len(lines) and not lines[h + 1].strip():
+                lines[h + 2:h + 2] = ["Proposed", ""]
+            else:
+                lines[h + 1:h + 1] = ["", "Proposed", ""]
+            text = "\n".join(lines)
     return text

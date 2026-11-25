@@ -122,6 +122,24 @@ class AdrTests(unittest.TestCase):
         out = docs_adr.render(text, "0001", "T", "2026-11-25", True)
         self.assertIn("## Status\n\nProposed\n", out)
 
+    def test_empty_nygard_section_keeps_the_next_heading(self):
+        text = "# T\n\n## Status\n\n## Date\n\n## Context\n\ntext\n"
+        self.assertIsNone(docs_adr.status_of(text))
+        self.assertIsNone(docs_adr.date_of(text))
+        out = docs_adr.render(text, "0001", "T", "2026-11-25", True)
+        self.assertIn("## Status\n\nProposed\n\n## Date\n", out)
+        self.assertIn("## Context\n\ntext\n", out)
+
+    def test_header_without_status_cell_falls_back_to_the_row(self):
+        text = "| ADR | Decision | State |\n|---|---|---|\n| [0001](0001-a.md) | A | Accepted |\n"
+        out = docs_adr.insert_index_row(text, "0002", "0002-b.md", "B")
+        self.assertTrue(out.endswith("| [0002](0002-b.md) | B | Proposed |\n"))
+
+    def test_short_form_with_empty_status_keeps_the_date(self):
+        text = "# T\n\n- **Status:** · **Date:** YYYY-MM-DD\n"
+        out = docs_adr.render(text, "0001", "T", "2026-11-25", True)
+        self.assertIn("- **Status:** Proposed · **Date:** 2026-11-25\n", out)
+
     def test_render_fills_an_empty_status(self):
         self.assertIn("- **Status:** Proposed", docs_adr.render("# T\n- **Status:**\n", "1", "T", "d", True))
         self.assertIn("Status: Proposed\n", docs_adr.render("# T\nStatus:\n", "1", "T", "d", True))
