@@ -10,7 +10,9 @@ _LINK_RE = re.compile(r"\[[^\]]*\]\(\s*<?([^)>\s]+)")
 _SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
 _LIST_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 _STATUS_WORD_RE = re.compile(
-    r"^(proposed|accepted|rejected|deprecated|superseded|draft|approved|withdrawn|amended)\b", re.I
+    r"^(proposed|accepted|rejected|deprecated|superseded|draft|approved|withdrawn|amended)"
+    r"(\s+(by|in|with|on|from|until|as)\b.*)?$",
+    re.I,
 )
 _SLUG_MAX = 60
 
@@ -114,6 +116,16 @@ def _header_table_end(lines: list[str]) -> Optional[int]:
     return end
 
 
+def _table_header(lines: list[str], row: int) -> Optional[list[str]]:
+    """Header cells of the table holding the given row, or None when it has no header."""
+    k = row
+    while k > 0 and _is_row(lines[k]):
+        if _SEPARATOR_RE.match(lines[k]) and _is_row(lines[k - 1]):
+            return _cells(lines[k - 1])
+        k -= 1
+    return None
+
+
 def index_format(text: str) -> Optional[str]:
     lines = text.split("\n")
     links = _link_lines(lines)
@@ -150,7 +162,14 @@ def insert_index_row(text: str, number: str, name: str, title: str) -> str:
         i = links[-1]
         cells = _cells(lines[i])
         link_idx = next(k for k, c in enumerate(cells) if _adr_link_name(c))
-        status_idx = next((k for k, c in enumerate(cells) if k != link_idx and _STATUS_WORD_RE.match(c)), None)
+        header = _table_header(lines, i)
+        status_idx = None
+        if header:
+            status_idx = next(
+                (k for k, c in enumerate(header) if "status" in c.lower() and k != link_idx and k < len(cells)), None
+            )
+        else:
+            status_idx = next((k for k, c in enumerate(cells) if k != link_idx and _STATUS_WORD_RE.match(c)), None)
         title_idx = next(
             (k for k, c in enumerate(cells) if k not in (link_idx, status_idx) and c), None
         )
@@ -186,10 +205,19 @@ def _field(text: str, key: str) -> Optional[tuple[int, str, int, int]]:
         rf"(?:^\s*(?:[-*+]\s+)?|\u00b7\s*)(?:\*\*|__)?{key}(?:\*\*|__)?\s*:\s*(?:\*\*|__)?\s*(.*?)\s*(?:\s\u00b7\s|$)",
         re.I,
     )
-    for i, line in enumerate(text.split("\n"), 1):
+    heading = re.compile(rf"^#{{2,}}\s+{key}\s*$", re.I)
+    lines = text.split("\n")
+    for i, line in enumerate(lines, 1):
         m = pattern.search(line)
         if m:
             return i, m.group(1), m.start(1), m.end(1)
+        if heading.match(line.rstrip()):
+            for j in range(i, len(lines)):
+                value = lines[j].strip()
+                if value:
+                    start = len(lines[j]) - len(lines[j].lstrip())
+                    return j + 1, value, start, start + len(value)
+            return None
     return None
 
 
@@ -218,6 +246,7 @@ def render(template: str, number: str, title: str, today: str, numbered_h1: bool
     if f:
         lines = text.split("\n")
         line = lines[f[0] - 1]
-        lines[f[0] - 1] = line[: f[2]] + "Proposed" + line[f[3]:]
+        lead = " " if f[2] > 0 and not line[f[2] - 1].isspace() else ""
+        lines[f[0] - 1] = line[: f[2]] + lead + "Proposed" + line[f[3]:]
         text = "\n".join(lines)
     return text

@@ -146,6 +146,32 @@ class NewAdrTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 2)
         self.assertIn("nope.md", proc.stderr)
 
+    def test_width_comes_from_the_base_when_no_local_adrs(self):
+        repo = fixtures.Repo(self.tmp)
+        repo.write("README.md", "x\n")
+        repo.commit("init")
+        repo.branch("work")
+        repo.checkout("main")
+        repo.write("docs/adr/001-a.md", "# 1. A\n")
+        repo.write("docs/adr/README.md", "- [001](001-a.md) A\n")
+        repo.commit("adr")
+        repo.checkout("work")
+        proc = run(repo.root, "--base", "main", "--title", "B")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "docs/adr/002-b.md")
+
+    def test_unfetched_base_warns_once(self):
+        repo = fixtures.Repo(self.tmp)
+        repo.write("docs/adr/0001-a.md", "# 1. A\n")
+        repo.write("docs/adr/README.md", "- [0001](0001-a.md) A\n")
+        repo.commit("one")
+        proc = run(repo.root, "--base", "origin/main", "--title", "B")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        lines = proc.stderr.strip().splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertTrue(lines[0].startswith("docs/adr:1: warning: base: "), lines[0])
+        self.assertEqual(proc.stdout.strip(), "docs/adr/0002-b.md")
+
     def test_crlf_index_keeps_line_endings(self):
         repo = fixtures.Repo(self.tmp)
         repo.write("docs/adr/0001-a.md", "# 1. A\n")

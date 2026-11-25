@@ -102,6 +102,30 @@ class AdrTests(unittest.TestCase):
         plain = docs_adr.render(template, "0004", "Pick a queue", "2026-11-25", False)
         self.assertTrue(plain.startswith("# Pick a queue\n"))
 
+    def test_title_starting_with_a_status_word_is_not_the_status(self):
+        row = "| [0001](0001-a.md) | Draft release process | Accepted |\n"
+        out = docs_adr.insert_index_row(row, "0002", "0002-b.md", "B")
+        self.assertEqual(out, row + "| [0002](0002-b.md) | B | Proposed |\n")
+        headed = "| ADR | Decision | Status |\n|---|---|---|\n" + row
+        out = docs_adr.insert_index_row(headed, "0002", "0002-b.md", "B")
+        self.assertTrue(out.endswith("| [0002](0002-b.md) | B | Proposed |\n"))
+
+    def test_superseded_phrase_is_a_status_cell(self):
+        row = "| [0001](0001-a.md) | A | Superseded by [0003](0003-c.md) |\n"
+        out = docs_adr.insert_index_row(row, "0004", "0004-d.md", "D")
+        self.assertEqual(out, row + "| [0004](0004-d.md) | D | Proposed |\n")
+
+    def test_nygard_headings(self):
+        text = "# 1. T\n\n## Status\n\nAccepted\n\n## Date\n2026-01-02\n\n## Context\n"
+        self.assertEqual(docs_adr.status_of(text), (5, "Accepted"))
+        self.assertEqual(docs_adr.date_of(text), (8, "2026-01-02"))
+        out = docs_adr.render(text, "0001", "T", "2026-11-25", True)
+        self.assertIn("## Status\n\nProposed\n", out)
+
+    def test_render_fills_an_empty_status(self):
+        self.assertIn("- **Status:** Proposed", docs_adr.render("# T\n- **Status:**\n", "1", "T", "d", True))
+        self.assertIn("Status: Proposed\n", docs_adr.render("# T\nStatus:\n", "1", "T", "d", True))
+
     def test_project_template_lookup(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)

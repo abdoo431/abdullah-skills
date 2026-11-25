@@ -94,7 +94,7 @@ def main(argv=None) -> int:
 
     local = docs_adr.adr_files(local_names)
     number = docs_adr.next_number(local, docs_adr.adr_files(base_names))
-    width = docs_adr.number_width(local)
+    width = docs_adr.number_width(local or docs_adr.adr_files(base_names))
     number_s = str(number).zfill(width)
     name = f"{number_s}-{slug}.md"
 
