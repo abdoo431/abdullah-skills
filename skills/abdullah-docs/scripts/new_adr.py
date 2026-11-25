@@ -22,7 +22,7 @@ NEW_INDEX = "# Architecture Decision Records\n\n| ADR | Decision | Status |\n|--
 
 
 def _read(path: Path) -> str:
-    return path.read_bytes().decode("utf-8", errors="replace")
+    return path.read_bytes().decode("utf-8", errors="replace").lstrip("﻿")
 
 
 def _fail(message: str) -> int:

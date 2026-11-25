@@ -11,6 +11,7 @@ _INLINE_LINK_RE = re.compile(
 )
 _REF_DEF_RE = re.compile(r"^ {0,3}\[(?!\^)[^\]]+\]:\s*(<[^>]*>|\S+)")
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+_MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
 _HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.*?)[ \t]*(?:#+[ \t]*)?$")
 
 
@@ -101,13 +102,20 @@ def code_paths(text: str) -> list:
     return result
 
 
+def _slug(heading: str) -> str:
+    """GitHub's anchor for a heading: link text only, emphasis markers dropped, punctuation removed."""
+    heading = _MD_LINK_RE.sub(r"\1", heading)
+    heading = re.sub(r"(?<!\w)_+([^_\s](?:[^_]*[^_\s])?)_+(?!\w)", r"\1", heading)
+    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+
+
 def heading_slugs(text: str) -> set:
     slugs, seen = set(), {}
     for line in _unfenced(split_lines(text)):
         m = _HEADING_RE.match(line)
         if not m:
             continue
-        base = re.sub(r"[^\w\- ]", "", m.group(1).lower()).replace(" ", "-")
+        base = _slug(m.group(1))
         count = seen.get(base, 0)
         seen[base] = count + 1
         slugs.add(base if count == 0 else f"{base}-{count}")

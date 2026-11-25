@@ -28,7 +28,7 @@ def _is_test(path: str) -> bool:
     parts = path.split("/")
     if any(p in ("test", "tests") for p in parts[:-1]):
         return True
-    return any(fnmatch.fnmatch(parts[-1], pat) for pat in _TEST_NAMES)
+    return any(fnmatch.fnmatchcase(parts[-1], pat) for pat in _TEST_NAMES)
 
 
 def _is_source(path: str) -> bool:

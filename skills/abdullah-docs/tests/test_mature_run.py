@@ -63,7 +63,9 @@ class EncodingTests(unittest.TestCase):
             code = (f"import sys; sys.path.insert(0, {str(folder)!r}); import {module}; "
                     f"{module}.main(['--root', 'no-such-folder', *{extra!r}]); "
                     "print(sys.stdout.encoding, sys.stderr.encoding)")
-            proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=_env())
+            with tempfile.TemporaryDirectory() as tmp:
+                proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                                      env=_env(), cwd=tmp)
             self.assertEqual(proc.stdout.split()[-2:], ["utf-8", "utf-8"], f"{module}: {proc.stdout} {proc.stderr}")
 
 

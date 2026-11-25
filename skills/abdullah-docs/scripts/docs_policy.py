@@ -32,7 +32,7 @@ def read_settings(policy: Optional[Path]) -> Settings:
     s = Settings()
     if policy is None:
         return s
-    text = Path(policy).read_text(encoding="utf-8", errors="replace")
+    text = Path(policy).read_text(encoding="utf-8-sig", errors="replace")
     m = _PROFILE_RE.search(text)
     if m:
         words = m.group(1).split()
@@ -78,7 +78,7 @@ def find_policy(root: Path) -> Optional[Path]:
             return root / rel
     contributing = root / "CONTRIBUTING.md"
     if contributing.is_file():
-        text = contributing.read_text(encoding="utf-8", errors="replace")
+        text = contributing.read_text(encoding="utf-8-sig", errors="replace")
         if _DOC_HEADING_RE.search(text):
             return contributing
     return None

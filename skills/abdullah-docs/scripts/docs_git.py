@@ -76,7 +76,7 @@ def added_lines(root: Path, base: str | None, path: str) -> set[int]:
         return set()
     if path in _untracked(root):
         try:
-            text = (Path(root) / path).read_text(encoding="utf-8", errors="replace")
+            text = (Path(root) / path).read_text(encoding="utf-8-sig", errors="replace")
         except OSError:
             return set()
         return set(range(1, len(text.splitlines()) + 1))
@@ -110,7 +110,7 @@ def tracked_files(root: Path, pattern: str) -> list[str]:
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for name in filenames:
             rel = (Path(dirpath) / name).relative_to(root).as_posix()
-            if fnmatch.fnmatch(rel, pattern):
+            if fnmatch.fnmatchcase(rel, pattern):
                 found.append(rel)
     return sorted(found)
 

@@ -33,7 +33,7 @@ class Context:
 
 
 def _read(path: Path) -> str:
-    return path.read_bytes().decode("utf-8", errors="replace")
+    return path.read_bytes().decode("utf-8", errors="replace").lstrip("﻿")
 
 
 def _adr_rel(ctx: Context) -> str:
@@ -51,7 +51,7 @@ def _local_names(ctx: Context) -> list:
 
 def is_history(ctx: Context, path: str) -> bool:
     path = path.replace("\\", "/")
-    if any(fnmatch.fnmatch(path, g) for g in ctx.settings.history):
+    if any(fnmatch.fnmatchcase(path, g) for g in ctx.settings.history):
         return True
     folder, _, name = path.rpartition("/")
     if (folder or ".") == _adr_rel(ctx) and docs_adr.ADR_NAME_RE.match(name):
@@ -282,7 +282,7 @@ def check_code_paths(ctx: Context) -> list:
     out = []
     suffixes = None
     for path in _markdown_files(ctx):
-        if any(fnmatch.fnmatch(path, g) for g in ctx.settings.examples):
+        if any(fnmatch.fnmatchcase(path, g) for g in ctx.settings.examples):
             continue
         text = _read(ctx.root / path)
         span = _history_span(ctx, path, text)
@@ -351,9 +351,9 @@ def check_pairs(ctx: Context) -> list:
     out = []
     for a, b in ctx.settings.pairs:
         for path in files:
-            if fnmatch.fnmatch(path, b):
+            if fnmatch.fnmatchcase(path, b):
                 other = _counterpart(path, b, a)
-            elif fnmatch.fnmatch(path, a):
+            elif fnmatch.fnmatchcase(path, a):
                 other = _counterpart(path, a, b)
             else:
                 continue
