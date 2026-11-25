@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import docs_adr  # noqa: E402
 import docs_findings  # noqa: E402
 import docs_git  # noqa: E402
+import docs_markdown  # noqa: E402
 import docs_policy  # noqa: E402
 
 _LINK_RE = re.compile(r"\[[^\]]*\]\(\s*<?([^)>\s]+)")
@@ -187,7 +188,153 @@ def check_agent_section(ctx: Context) -> list:
         f"no '{docs_policy.AGENT_SECTION_HEADING}' section in CLAUDE.md or AGENTS.md")]
 
 
-CHECKS: list = [check_adr, check_agent_section]
+_UNRELEASED_RE = re.compile(r"^## (\[unreleased\]|unreleased)\s*$", re.I)
+
+
+def _changelog_rel(ctx: Context) -> str:
+    return ctx.settings.changelog.replace("\\", "/").removeprefix("./")
+
+
+def _unreleased_range(lines: list):
+    """(first, last) 1-based line numbers of the unreleased section, or None."""
+    for i, line in enumerate(lines):
+        if _UNRELEASED_RE.match(line):
+            end = len(lines)
+            for j in range(i + 1, len(lines)):
+                if lines[j].startswith("## "):
+                    end = j
+                    break
+            return i + 1, end
+    return None
+
+
+def _history_span(ctx: Context, path: str, text: str):
+    """The unreleased span when path is the changelog (lines outside it are history), else None."""
+    if path != _changelog_rel(ctx):
+        return None
+    return _unreleased_range(docs_markdown.split_lines(text))
+
+
+def _outside(span, line: int) -> bool:
+    return span is not None and not span[0] <= line <= span[1]
+
+
+def _markdown_files(ctx: Context) -> list:
+    if ctx.scope is None:
+        return [p for p in docs_git.tracked_files(ctx.root, "*.md") if (ctx.root / p).is_file()]
+    return sorted(p for p in ctx.scope if p.endswith(".md") and (ctx.root / p).is_file())
+
+
+def _exists_from(ctx: Context, path: str, target: str) -> bool:
+    folder = (ctx.root / path).parent
+    return (folder / target).exists()
+
+
+def check_links(ctx: Context) -> list:
+    out = []
+    cache: dict = {}
+
+    def slugs(file: Path) -> set:
+        if file not in cache:
+            cache[file] = docs_markdown.heading_slugs(_read(file))
+        return cache[file]
+
+    for path in _markdown_files(ctx):
+        text = _read(ctx.root / path)
+        span = _history_span(ctx, path, text)
+
+        def sev(line: int) -> str:
+            return "warning" if _outside(span, line) else severity_for(ctx, path)
+
+        for link in docs_markdown.links(text):
+            if link.target.startswith("/"):
+                continue
+            file = ctx.root / path if not link.target else (ctx.root / path).parent / link.target
+            if link.target and not file.exists():
+                out.append(docs_findings.Finding(
+                    path, link.line, sev(link.line), "link", f"link target does not exist: {link.target}"))
+            elif link.anchor and file.is_file() and file.suffix.lower() == ".md"                     and link.anchor.lower() not in slugs(file):
+                out.append(docs_findings.warning(
+                    path, link.line, "anchor", f"no heading matches anchor #{link.anchor} in {link.target or path}"))
+    return out
+
+
+def check_code_paths(ctx: Context) -> list:
+    out = []
+    for path in _markdown_files(ctx):
+        if any(fnmatch.fnmatch(path, g) for g in ctx.settings.examples):
+            continue
+        text = _read(ctx.root / path)
+        span = _history_span(ctx, path, text)
+        for line, token in docs_markdown.code_paths(text):
+            if (ctx.root / token).exists() or _exists_from(ctx, path, token):
+                continue
+            severity = "warning" if _outside(span, line) else severity_for(ctx, path)
+            out.append(docs_findings.Finding(path, line, severity, "code-path", f"path does not exist: {token}"))
+    return out
+
+
+def check_changelog(ctx: Context) -> list:
+    rel = _changelog_rel(ctx)
+    if not rel or not (ctx.root / rel).is_file():
+        return []
+    lines = docs_markdown.split_lines(_read(ctx.root / rel))
+    span = _unreleased_range(lines)
+    if span is None:
+        return [docs_findings.error(rel, 1, "changelog", "no '## [Unreleased]' section")]
+    if not ctx.base or ctx.release:
+        return []
+    out = []
+    for n in sorted(docs_git.added_lines(ctx.root, ctx.base, rel)):
+        if 1 <= n <= len(lines) and lines[n - 1].strip() and not span[0] <= n <= span[1]:
+            out.append(docs_findings.error(
+                rel, n, "changelog", "line added outside the Unreleased section; move it under Unreleased"))
+    return out
+
+
+def _glob_regex(glob: str):
+    parts = re.split(r"\*+", glob)
+    return re.compile("^" + "(.*)".join(re.escape(p) for p in parts) + "$")
+
+
+def _counterpart(path: str, src: str, dst: str):
+    m = _glob_regex(src).match(path)
+    if not m:
+        return None
+    pieces = dst.split("*")
+    groups = list(m.groups())
+    if len(pieces) - 1 > len(groups):
+        return None
+    return "".join(p + (groups[i] if i < len(groups) and i < len(pieces) - 1 else "")
+                   for i, p in enumerate(pieces))
+
+
+def check_pairs(ctx: Context) -> list:
+    if not ctx.settings.pairs:
+        return []
+    files = docs_git.tracked_files(ctx.root, "*") if ctx.scope is None else ctx.scope
+    files = sorted(p for p in files if (ctx.root / p).is_file())
+    changed = docs_git.changed_files(ctx.root, ctx.base) if ctx.base else None
+    out = []
+    for a, b in ctx.settings.pairs:
+        for path in files:
+            if fnmatch.fnmatch(path, b):
+                other = _counterpart(path, b, a)
+            elif fnmatch.fnmatch(path, a):
+                other = _counterpart(path, a, b)
+            else:
+                continue
+            if other is None:
+                continue
+            if not (ctx.root / other).is_file():
+                out.append(docs_findings.error(path, 1, "pair", f"no counterpart {other}"))
+            elif changed is not None and path in changed and other not in changed:
+                out.append(docs_findings.error(
+                    path, 1, "pair", f"changed since {ctx.base} but its counterpart {other} did not"))
+    return out
+
+
+CHECKS: list = [check_adr, check_agent_section, check_links, check_code_paths, check_changelog, check_pairs]
 
 
 def main(argv=None) -> int:
