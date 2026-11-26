@@ -132,6 +132,8 @@ The separate "plugin directory checks" that follow also print an `ICON_MISSING` 
 
 `python scripts/link_skills.py` links each `skills/<skill>` folder into `~/.claude/skills` and `~/.agents/skills` (a junction on Windows, a symbolic link elsewhere), so local agents load the working copy. Pass `--dest <folder>` to choose other folders, `--dry-run` to see what it would do, and `--remove` to remove the links. It replaces its own links but never a real folder.
 
+If the plugin is also installed, disable it before linking (`claude plugin disable abdullah-skills@abdullah` in Claude Code, and the same in any other agent that has it), and enable it again after `--remove`. Otherwise the agent loads both copies, `abdullah-skills:abdullah-docs` from the plugin and `abdullah-docs` from the link, and may run the published one instead of the working copy.
+
 ## Documentation (abdullah-docs)
 
 This project follows the policy in docs/DOCUMENTATION.md, using the abdullah-docs skill
