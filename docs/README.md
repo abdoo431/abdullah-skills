@@ -9,6 +9,7 @@ This is the map of this repository's documentation: what each document answers a
 | README | [`README.md`](../README.md) | What the skills fix, how to install them, and the skill list |
 | Documentation policy | [`docs/DOCUMENTATION.md`](DOCUMENTATION.md) | Where each kind of document lives, and what "done" means |
 | Changelog | [`CHANGELOG.md`](../CHANGELOG.md) | What changed in each version |
+| Release policy | [`docs/RELEASING.md`](RELEASING.md) | How versions are numbered and releases cut |
 | Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | How to report a problem |
 
 ## The skills

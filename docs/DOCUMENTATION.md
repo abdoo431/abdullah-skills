@@ -48,6 +48,7 @@ This repository uses the `lean` profile: the map, the changelog, the ADR folder,
 |---|---|---|
 | Documentation map | `docs/README.md` | |
 | Changelog | `CHANGELOG.md` | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format |
+| Release policy | `docs/RELEASING.md` | Read by `abdullah-versioning` |
 | ADRs | `.agents/adr/` | `NNNN-<title>.md`, listed in `.agents/adr/README.md` |
 | Designs | `docs/design/` | `YYYY-MM-DD-<topic>-design.md` |
 | Plans | `docs/plans/` | `YYYY-MM-DD-<topic>.md` |

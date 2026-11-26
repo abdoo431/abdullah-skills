@@ -17,6 +17,7 @@ CLAUDE.md, AGENTS.md            identical: this file
 .claude-plugin/marketplace.json this repository as its own marketplace, named abdullah
 .github/workflows/check.yml     the checks below, on Linux and Windows, Python 3.10 and 3.12
 docs/DOCUMENTATION.md           this repository's documentation policy
+docs/RELEASING.md               this repository's release policy
 docs/README.md                  the map of this repository's documents
 docs/<skill>.md                 the human-facing page for each skill
 docs/design/, docs/plans/       designs and implementation plans (history once carried out)
@@ -129,9 +130,11 @@ The separate "plugin directory checks" that follow also print an `ICON_MISSING` 
 
 ## Releases
 
-- Bump `version` in `.claude-plugin/plugin.json` for every release: plugin installs update only when it changes. It is the repository's only version.
-- Move the `[Unreleased]` entries in `CHANGELOG.md` into a section `## [X.Y.Z] - YYYY-MM-DD` with the same version. A repository test checks that the two agree.
-- Tag the release `vX.Y.Z`.
+Releases follow [docs/RELEASING.md](docs/RELEASING.md), cut with the `abdullah-versioning` skill (layout `main`).
+
+- `version` in `.claude-plugin/plugin.json` is the repository's only version, and plugin installs update only when it changes. The skill declares it; never edit it by hand.
+- The skill moves the `[Unreleased]` entries in `CHANGELOG.md` into a section `## [X.Y.Z] - YYYY-MM-DD` with the same version. A repository test checks that the two agree.
+- The release commit on `main` is tagged `vX.Y.Z`, with a GitHub Release from `version.py notes X.Y.Z`.
 
 ## Trying the working copy in your agents
 
@@ -145,4 +148,12 @@ This project follows the policy in docs/DOCUMENTATION.md, using the abdullah-doc
 (https://github.com/abdoo431/abdullah-skills).
 - Before calling any task done, and before opening a pull request, run its done check.
 - At the end of a session, run its decision capture.
+- If your agent cannot load skills, install them from the link above.
+
+## Versioning (abdullah-versioning)
+
+This project follows the release policy in docs/RELEASING.md, using the abdullah-versioning skill
+(https://github.com/abdoo431/abdullah-skills).
+- Never change a declared version, the changelog's version sections or a release tag by hand; use the skill.
+- After a pull request merges into main, check whether a release is due.
 - If your agent cannot load skills, install them from the link above.
