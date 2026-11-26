@@ -21,8 +21,8 @@ _MS_VERSION = re.compile(r"<Version>([^<]*)</Version>")
 _MS_PREFIX = re.compile(r"<VersionPrefix>([^<]*)</VersionPrefix>")
 _MS_SUFFIX = re.compile(r"<VersionSuffix>([^<]*)</VersionSuffix>|<VersionSuffix\s*/>")
 _PY_VERSION = re.compile(r"""^__version__[ \t]*(?::[ \t]*str[ \t]*)?=[ \t]*(["'])([^"'\n]*)\1""", re.M)
-_TOML_HEADER = re.compile(r"^[ \t]*\[([^\[\]\n]+)\][ \t]*(?:#.*)?$")
-_TOML_ARRAY_HEADER = re.compile(r"^[ \t]*\[\[([^\[\]\n]+)\]\][ \t]*(?:#.*)?$")
+_TOML_HEADER = re.compile(r"^[ \t]*\[([^\[\]\r\n]+)\][ \t]*(?:#[^\r\n]*)?\r?$")
+_TOML_ARRAY_HEADER = re.compile(r"^[ \t]*\[\[([^\[\]\r\n]+)\]\][ \t]*(?:#[^\r\n]*)?\r?$")
 _TOML_KEY = r"^[ \t]*{key}[ \t]*=[ \t]*([\"'])([^\"'\n]*)\1"
 _TOML_DYNAMIC = re.compile(r"""^[ \t]*dynamic[ \t]*=[ \t]*\[[^\]]*["']version["']""", re.M)
 
@@ -90,9 +90,6 @@ def _load(root: Path, src: Source):
     return raw[3:].decode("utf-8", errors="surrogateescape") if bom else raw.decode("utf-8", errors="surrogateescape"), bom
 
 
-def _save(root: Path, src: Source, text: str, bom: bool) -> None:
-    data = text.encode("utf-8", errors="surrogateescape")
-    _file(root, src).write_bytes((b"\xef\xbb\xbf" if bom else b"") + data)
 
 
 # --- span finders: each returns a list of (start, end) spans of the version text -----
@@ -266,9 +263,8 @@ def _form(src: Source, v: Version) -> str:
     return to_pep440(v) if src.kind in ("pyproject", "python") else str(v)
 
 
-def write_version(root: Path, src: Source, v: Version) -> None:
-    if src.kind == "tag":
-        return
+def render_version(root: Path, src: Source, v: Version) -> bytes:
+    """The source file's bytes with v declared; nothing is written. Raises ValueError."""
     text, bom = _load(root, src)
     spans = _spans(root, src, text)
     if not spans and src.kind == "msbuild" and _MS_PREFIX.search(text):
@@ -279,7 +275,13 @@ def write_version(root: Path, src: Source, v: Version) -> None:
         new = _form(src, v)
         for start, end in sorted(spans, reverse=True):
             text = text[:start] + new + text[end:]
-    _save(root, src, text, bom)
+    return (b"\xef\xbb\xbf" if bom else b"") + text.encode("utf-8", errors="surrogateescape")
+
+
+def write_version(root: Path, src: Source, v: Version) -> None:
+    if src.kind == "tag":
+        return
+    _file(root, src).write_bytes(render_version(root, src, v))
 
 
 def _write_prefix_suffix(text: str, v: Version) -> str:
@@ -290,6 +292,9 @@ def _write_prefix_suffix(text: str, v: Version) -> str:
             text = text[:suffix.start(1)] + label + text[suffix.end(1):]
         elif label:
             text = text[:suffix.start()] + f"<VersionSuffix>{label}</VersionSuffix>" + text[suffix.end():]
+    elif label:
+        close = _MS_PREFIX.search(text).end()
+        text = text[:close] + f"<VersionSuffix>{label}</VersionSuffix>" + text[close:]
     prefix = _MS_PREFIX.search(text)
     core = str(v.final)
     return text[:prefix.start(1)] + core + text[prefix.end(1):]

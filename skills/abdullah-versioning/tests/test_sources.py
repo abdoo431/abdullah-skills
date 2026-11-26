@@ -126,6 +126,44 @@ class SourcesTests(unittest.TestCase):
         self.assertEqual((self.root / "Cargo.lock").read_bytes(),
                          CARGO_LOCK.replace(b'name = "app"\nversion = "0.1.0"', b'name = "app"\nversion = "0.2.0"'))
 
+    def test_crlf_toml_files(self):
+        files = {
+            "pyproject.toml": b'[project]\r\nname = "x"\r\nversion = "0.1.0"\r\n',
+            "Cargo.toml": b'[package]\r\nname = "app"\r\nversion = "0.1.0"\r\n\r\n[dependencies]\r\nserde = "0.1.0"\r\n',
+            "Cargo.lock": b'[[package]]\r\nname = "serde"\r\nversion = "0.1.0"\r\n\r\n[[package]]\r\nname = "app"\r\nversion = "0.1.0"\r\n',
+        }
+        for rel, data in files.items():
+            self._put(rel, data)
+        for rel, data in files.items():
+            with self.subTest(rel=rel):
+                src = vs.parse_source(rel)
+                self.assertEqual(vs.read_version(self.root, src), V("0.1.0"))
+                vs.write_version(self.root, src, V("0.2.0"))
+                if rel == "Cargo.lock":
+                    expected = data.replace(b'"app"\r\nversion = "0.1.0"', b'"app"\r\nversion = "0.2.0"')
+                else:
+                    expected = data.replace(b'version = "0.1.0"', b'version = "0.2.0"', 1)
+                self.assertEqual((self.root / rel).read_bytes(), expected)
+        self.assertEqual([s.spec for s in vs.discover(self.root)], ["Cargo.lock", "Cargo.toml", "pyproject.toml"])
+
+    def test_version_prefix_without_suffix_gets_one_for_a_pre_release(self):
+        props = b"<Project>\n  <PropertyGroup>\n    <VersionPrefix>0.1.0</VersionPrefix>\n  </PropertyGroup>\n</Project>\n"
+        self._put("Directory.Build.props", props)
+        src = vs.parse_source("Directory.Build.props")
+        vs.write_version(self.root, src, V("0.2.0-rc.1"))
+        self.assertEqual(vs.read_version(self.root, src), V("0.2.0-rc.1"))
+        self.assertIn(b"<VersionPrefix>0.2.0</VersionPrefix><VersionSuffix>rc.1</VersionSuffix>",
+                      (self.root / "Directory.Build.props").read_bytes())
+
+    def test_render_does_not_write(self):
+        self._put("VERSION", b"0.1.0\n")
+        src = vs.parse_source("VERSION")
+        self.assertEqual(vs.render_version(self.root, src, V("0.2.0")), b"0.2.0\n")
+        self.assertEqual((self.root / "VERSION").read_bytes(), b"0.1.0\n")
+        self._put("app.py", b'__version__ = "0.1.0"\n')
+        with self.assertRaises(ValueError):
+            vs.render_version(self.root, vs.parse_source("app.py"), V("0.2.0-snapshot"))
+
     def test_version_prefix_and_suffix(self):
         props = b"<Project><PropertyGroup><VersionPrefix>0.1.0</VersionPrefix><VersionSuffix></VersionSuffix></PropertyGroup></Project>"
         self._put("Directory.Build.props", props)
