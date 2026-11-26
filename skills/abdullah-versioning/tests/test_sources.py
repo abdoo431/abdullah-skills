@@ -156,6 +156,24 @@ class SourcesTests(unittest.TestCase):
         self._put("src/App/Properties/AssemblyInfo.cs", b'[assembly: AssemblyVersion("1.0.0.0")]\n')
         self.assertEqual(vs.assembly_info(self.root), ["src/App/Properties/AssemblyInfo.cs"])
 
+    def test_source_paths_stay_inside_the_repository(self):
+        for spec in ("../x/package.json", "/etc/VERSION", "C:/x/VERSION", "a/../../VERSION", "../a.go#v = (.*)"):
+            with self.subTest(spec=spec):
+                with self.assertRaises(ValueError):
+                    vs.parse_source(spec)
+
+    def test_write_refuses_a_link_out_of_the_repository(self):
+        with tempfile.TemporaryDirectory() as outside:
+            target = Path(outside) / "VERSION"
+            target.write_bytes(b"0.1.0\n")
+            try:
+                (self.root / "VERSION").symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("symbolic links are not available")
+            with self.assertRaises(ValueError):
+                vs.write_version(self.root, vs.parse_source("VERSION"), V("0.2.0"))
+            self.assertEqual(target.read_bytes(), b"0.1.0\n")
+
     def test_unreadable_source(self):
         self._put("package.json", b'{"name": "web"}\n')
         with self.assertRaises(ValueError) as cm:

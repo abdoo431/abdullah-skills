@@ -35,14 +35,22 @@ class Source:
     pattern: Optional[str] = None
 
 
+def _inside(path: str, spec: str) -> str:
+    """A source path must be relative and stay inside the repository."""
+    path = path.replace("\\", "/")
+    if path.startswith("/") or re.match(r"^[A-Za-z]:", path) or ".." in path.split("/"):
+        raise ValueError(f"source {spec!r} is outside the repository: use a path relative to its root")
+    return path
+
+
 def parse_source(spec: str) -> Source:
     spec = spec.strip()
     if spec == "tag":
         return Source(spec, "", "tag")
     if "#" in spec:
         path, _, pattern = spec.partition("#")
-        return Source(spec, path.replace("\\", "/"), "regex", pattern)
-    path = spec.replace("\\", "/")
+        return Source(spec, _inside(path, spec), "regex", pattern)
+    path = _inside(spec, spec)
     name = path.rsplit("/", 1)[-1]
     if name == "Directory.Build.props" or name.endswith(_MSBUILD_EXT):
         kind = "msbuild"
@@ -67,15 +75,24 @@ def parse_source(spec: str) -> Source:
 
 # --- file access -------------------------------------------------------------------
 
+def _file(root: Path, src: Source) -> Path:
+    """The source's file, refused when it resolves outside the repository (a link out of it)."""
+    base = Path(root).resolve()
+    path = (base / src.path).resolve()
+    if path != base and base not in path.parents:
+        raise ValueError(f"{src.path}: resolves outside the repository")
+    return path
+
+
 def _load(root: Path, src: Source):
-    raw = (Path(root) / src.path).read_bytes()
+    raw = _file(root, src).read_bytes()
     bom = raw.startswith(b"\xef\xbb\xbf")
     return raw[3:].decode("utf-8", errors="surrogateescape") if bom else raw.decode("utf-8", errors="surrogateescape"), bom
 
 
 def _save(root: Path, src: Source, text: str, bom: bool) -> None:
     data = text.encode("utf-8", errors="surrogateescape")
-    (Path(root) / src.path).write_bytes((b"\xef\xbb\xbf" if bom else b"") + data)
+    _file(root, src).write_bytes((b"\xef\xbb\xbf" if bom else b"") + data)
 
 
 # --- span finders: each returns a list of (start, end) spans of the version text -----
