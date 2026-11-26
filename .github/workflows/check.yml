@@ -28,6 +28,8 @@ jobs:
         run: python scripts/check_frontmatter.py --root .
       - name: Skill tests
         run: python -m unittest discover -s skills/abdullah-docs/tests -t skills/abdullah-docs -v
+      - name: Versioning skill tests
+        run: python -m unittest discover -s skills/abdullah-versioning/tests -t skills/abdullah-versioning -v
       - name: Repository tests
         run: python -m unittest discover -s tests -v
       - name: Documentation check

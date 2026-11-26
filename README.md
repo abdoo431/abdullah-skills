@@ -1,6 +1,6 @@
 # abdullah-skills
 
-Agent skills for traceable project documentation and, next, versioning. They follow the [Agent Skills](https://agentskills.io) format, so they work in Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, OpenCode and other agents that support it, on any number of projects.
+Agent skills for traceable project documentation, and for versions and releases. They follow the [Agent Skills](https://agentskills.io) format, so they work in Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, OpenCode and other agents that support it, on any number of projects.
 
 ## The problem
 
@@ -25,6 +25,8 @@ Both are mechanical, and a check that compares the branch with a freshly fetched
 With those links in place, a problem can be traced from the symptom to the commit, from the commit to the decision behind it, and from the decision to the requirement.
 
 The skill follows the project's own documentation policy, or a default one when there is none. Its scripts number and index ADRs, check links, code paths, ADR numbers and changelog placement against the main branch, and list what the diff shows for each definition-of-done item. A short section in the project's `CLAUDE.md` or `AGENTS.md` makes every session run the done check before calling a task done, even when the task is not about documentation.
+
+`abdullah-versioning` answers the fourth question. It proposes the next version, and which of its three parts goes up, from the changelog's `[Unreleased]` entries; finds every file that declares the version, in any language, and keeps them in agreement; and runs releases, release candidates and hotfixes on the project's branch layout (`dev` → `staging` → `main`, `dev` and `main`, or `main` alone), asking before every step that leaves your machine.
 
 ## Step 1: install
 
@@ -69,7 +71,7 @@ This copy does not update itself.
 npx skills@latest add abdoo431/abdullah-skills
 ```
 
-It asks which agents and skills to install. To answer up front, name them: `npx skills@latest add abdoo431/abdullah-skills -g -a claude-code -s '*' -y` installs both skills for Claude Code at user level.
+It asks which agents and skills to install. To answer up front, name them: `npx skills@latest add abdoo431/abdullah-skills -g -a claude-code -s '*' -y` installs every skill for Claude Code at user level.
 
 This copy does not update itself. Update it with `npx skills@latest update`.
 
@@ -77,11 +79,15 @@ This copy does not update itself. Update it with `npx skills@latest update`.
 
 Run `/setup-abdullah-docs` once in each project (`/abdullah-skills:setup-abdullah-docs` when installed as a plugin), or let `abdullah-docs` start the setup the first time it runs in a project without a documentation policy.
 
+For releases, run `/setup-abdullah-versioning` once in each project (`/abdullah-skills:setup-abdullah-versioning` when installed as a plugin), or let `abdullah-versioning` start its setup the first time it runs in a project without a release policy.
+
 ## Step 2: set up each project
 
 In each project, run `/setup-abdullah-docs` (`/abdullah-skills:setup-abdullah-docs` when installed as a plugin). The setup surveys the project read-only, asks you to choose the `lean` or `full` profile, and shows you drafts of the documentation policy, the documentation map and the section for the agent instructions. It writes nothing until you agree, and it writes a question in place of any fact the code and history do not show.
 
 You can also skip this step: the first time `abdullah-docs` runs in a project without a documentation policy, it offers the same setup on its own.
+
+For releases, run `/setup-abdullah-versioning` (`/abdullah-skills:setup-abdullah-versioning` when installed as a plugin) the same way: it surveys the project's tags, version files, changelog and branches, and drafts its release policy for your approval. `abdullah-versioning` offers it on its own too.
 
 ## Skills
 
@@ -90,12 +96,14 @@ You can also skip this step: the first time `abdullah-docs` runs in a project wi
 You run these yourself; no agent starts them on its own.
 
 - [setup-abdullah-docs](skills/setup-abdullah-docs/SKILL.md): set up a project for `abdullah-docs`, or refresh an earlier setup. [How it works](docs/setup-abdullah-docs.md).
+- [setup-abdullah-versioning](skills/setup-abdullah-versioning/SKILL.md): set up a project for `abdullah-versioning`, or refresh an earlier setup. [How it works](docs/setup-abdullah-versioning.md).
 
 ### Model-invoked
 
 The agent reaches for these when the task calls for them; you can also invoke them by name.
 
 - [abdullah-docs](skills/abdullah-docs/SKILL.md): keep a project's ADRs, changelog, specs, runbooks, incident records and READMEs traceable, run the done check before a task is called done, and capture decisions made in conversation. [How it works](docs/abdullah-docs.md).
+- [abdullah-versioning](skills/abdullah-versioning/SKILL.md): propose the next version from the changelog, keep every declared version in agreement, run releases, pre-releases and hotfixes on the project's branch layout, and say when a release is due. [How it works](docs/abdullah-versioning.md).
 
 ## More
 

@@ -17,6 +17,8 @@ This is the map of this repository's documentation: what each document answers a
 |---|---|---|
 | abdullah-docs | [`docs/abdullah-docs.md`](abdullah-docs.md) | What the documentation skill does and how to tell it works |
 | setup-abdullah-docs | [`docs/setup-abdullah-docs.md`](setup-abdullah-docs.md) | What the setup does and what it writes |
+| abdullah-versioning | [`docs/abdullah-versioning.md`](abdullah-versioning.md) | What the versioning skill does and how to tell it works |
+| setup-abdullah-versioning | [`docs/setup-abdullah-versioning.md`](setup-abdullah-versioning.md) | What the release setup does and what it writes |
 | The skills themselves | [`skills/`](../skills/) | The instructions agents read: each skill's `SKILL.md` and reference pages |
 
 ## Decisions and designs

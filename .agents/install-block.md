@@ -39,10 +39,12 @@ This copy does not update itself.
 npx skills@latest add abdoo431/abdullah-skills
 ```
 
-It asks which agents and skills to install. To answer up front, name them: `npx skills@latest add abdoo431/abdullah-skills -g -a claude-code -s '*' -y` installs both skills for Claude Code at user level.
+It asks which agents and skills to install. To answer up front, name them: `npx skills@latest add abdoo431/abdullah-skills -g -a claude-code -s '*' -y` installs every skill for Claude Code at user level.
 
 This copy does not update itself. Update it with `npx skills@latest update`.
 
 ### After installing
 
 Run `/setup-abdullah-docs` once in each project (`/abdullah-skills:setup-abdullah-docs` when installed as a plugin), or let `abdullah-docs` start the setup the first time it runs in a project without a documentation policy.
+
+For releases, run `/setup-abdullah-versioning` once in each project (`/abdullah-skills:setup-abdullah-versioning` when installed as a plugin), or let `abdullah-versioning` start its setup the first time it runs in a project without a release policy.
