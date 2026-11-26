@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-26
+
 ### Added
 
 - `abdullah-versioning` skill: proposes the next version and which part goes up from the changelog's `[Unreleased]` entries, keeps every file that declares the version in agreement (.NET, Python, Node, Rust, plugin manifests, a `VERSION` file, or any file through a pattern), and runs releases, pre-releases, hotfixes and fixes for older release lines on a `dev` → `staging` → `main`, `dev` and `main`, or `main` layout. See [docs/abdullah-versioning.md](docs/abdullah-versioning.md).
