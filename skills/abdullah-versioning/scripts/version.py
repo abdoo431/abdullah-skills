@@ -143,8 +143,17 @@ def _status(args) -> int:
     return 0
 
 
+def _changelog_file(root: Path, settings) -> Path:
+    """The changelog, refused when it resolves outside the repository (a link out of it)."""
+    base = Path(root).resolve()
+    path = (base / settings.changelog).resolve()
+    if base not in path.parents:
+        raise Refused(f"{settings.changelog} resolves outside the repository")
+    return path
+
+
 def _changelog_text(root: Path, settings) -> str:
-    path = root / settings.changelog
+    path = _changelog_file(root, settings)
     if not path.is_file():
         raise Refused(f"{settings.changelog} does not exist")
     return ver_changelog.read_text(path)[0]
@@ -221,7 +230,7 @@ def _check(args) -> int:
         f = _role_finding(st, settings, next(iter(parsed.values())))
         if f:
             findings.append(f)
-    cl_path = root / settings.changelog
+    cl_path = _changelog_file(root, settings)
     if cl_path.is_file():
         for line, message in ver_changelog.problems(ver_changelog.read_text(cl_path)[0]):
             findings.append(ver_findings.error(settings.changelog, line, "changelog", message))
@@ -302,7 +311,7 @@ def _write_all(ctx: _Context, changelog_text, target: Version) -> list:
         if src.kind != "tag" and ver_sources.read_raw(ctx.root, src) is None:
             raise Refused(f"{src.path}: no version found")
     if changelog_text is not None:
-        path = ctx.root / ctx.settings.changelog
+        path = _changelog_file(ctx.root, ctx.settings)
         _, newline, bom = ver_changelog.read_text(path)
         ver_changelog.write_text(path, changelog_text, newline, bom)
         written.append(ctx.settings.changelog)
@@ -344,7 +353,7 @@ def _declare(args) -> int:
     _check_target(ctx, target, args, strict=False)
     new_text = None
     if target.is_final or target.stage in STAGES:
-        text = _changelog_text(ctx.root, ctx.settings) if (ctx.root / ctx.settings.changelog).is_file() else None
+        text = _changelog_text(ctx.root, ctx.settings) if (_changelog_file(ctx.root, ctx.settings)).is_file() else None
         is_open = text is not None and target.final not in ctx.finals and any(
             s.version == target.final for s in ver_changelog.sections(text))
         if is_open:
@@ -370,7 +379,7 @@ def _carry(args) -> int:
         raise Refused(f"{args.ref} has no [{args.version}] section")
     lines = other.split("\n")
     block = "\n".join([lines[sec.start], "", ver_changelog.section_body(other, args.version)])
-    path = root / settings.changelog
+    path = _changelog_file(root, settings)
     text, newline, bom = ver_changelog.read_text(path)
     ver_changelog.write_text(path, ver_changelog.insert_section(text, block, args.version), newline, bom)
     print(f"wrote: {settings.changelog}")

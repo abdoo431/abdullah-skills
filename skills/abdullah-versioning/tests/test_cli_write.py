@@ -179,6 +179,22 @@ class CliWriteTests(unittest.TestCase):
         self.assertIn("## [0.1.1] - 2026-12-01\n\n### Fixed\n\n- A crash.", cl)
         self.assertEqual(run("carry", "0.1.1", "--from", "support/0.1.x", "--root", str(self.root))[0], 1)
 
+    def test_changelog_linked_out_of_the_repository_is_refused(self):
+        repo = make(self.root)
+        with tempfile.TemporaryDirectory() as outside:
+            target = Path(outside) / "CHANGELOG.md"
+            target.write_bytes((self.root / "CHANGELOG.md").read_bytes())
+            (self.root / "CHANGELOG.md").unlink()
+            try:
+                (self.root / "CHANGELOG.md").symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("symbolic links are not available")
+            before = target.read_bytes()
+            code, _, err = run("prepare", "0.2.0", "--root", str(self.root))
+            self.assertEqual(code, 1, err)
+            self.assertEqual(target.read_bytes(), before)
+        del repo
+
     def test_tag_source_writes_nothing(self):
         make(self.root, sources="tag")
         code, _, err = run("prepare", "0.2.0", "--date", "2026-11-26", "--root", str(self.root))

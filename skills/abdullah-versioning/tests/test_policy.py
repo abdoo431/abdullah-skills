@@ -89,6 +89,12 @@ class PolicyTests(unittest.TestCase):
         s = ver_policy.read_settings(self._write("a.md", _block("layout: main", "first-version: 1.0.0")))
         self.assertEqual(s.first_version, "1.0.0")
 
+    def test_changelog_must_stay_inside_the_repository(self):
+        for value in ("../outside.md", "/etc/CHANGELOG.md", "C:/x/CHANGELOG.md"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    ver_policy.read_settings(self._write("a.md", _block("layout: main", f"changelog: {value}")))
+
     def test_bad_layout(self):
         with self.assertRaises(ValueError) as cm:
             ver_policy.read_settings(self._write("a.md", _block("layout: gitflow")))

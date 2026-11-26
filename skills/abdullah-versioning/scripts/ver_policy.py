@@ -54,7 +54,12 @@ def read_settings(policy: Optional[Path]) -> Settings:
                 if value not in LAYOUTS:
                     raise ValueError(f"layout {value!r} is not one of: {', '.join(LAYOUTS)}")
                 s.layout = value
-            elif key in ("production", "staging", "integration", "tag", "changelog"):
+            elif key == "changelog":
+                path = value.replace("\\", "/")
+                if path.startswith("/") or re.match(r"^[A-Za-z]:", path) or ".." in path.split("/"):
+                    raise ValueError(f"changelog {value!r} is outside the repository: use a path relative to its root")
+                s.changelog = path
+            elif key in ("production", "staging", "integration", "tag"):
                 setattr(s, key, value)
             elif key == "sources":
                 s.sources = _csv(value)
