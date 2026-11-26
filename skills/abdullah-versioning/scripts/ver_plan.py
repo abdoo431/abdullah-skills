@@ -18,9 +18,17 @@ class Proposal:
     pre: Optional[str] = None
 
 
+MAX_REASON = 120
+
+
 def _first_line(bullet: str) -> str:
+    """The entry's first sentence, cut to MAX_REASON characters, so a proposal reads in one line."""
     line = bullet.split("\n", 1)[0].strip()
-    return line[2:].strip() if line[:2] in ("- ", "* ", "+ ") else line
+    line = line[2:].strip() if line[:2] in ("- ", "* ", "+ ") else line
+    end = line.find(". ")
+    if 0 < end < MAX_REASON:
+        return line[:end + 1]
+    return line if len(line) <= MAX_REASON else line[:MAX_REASON - 1].rstrip() + "…"
 
 
 def propose(current: Optional[Version], entries: dict, *, first: Version, pre: Optional[str] = None,

@@ -42,6 +42,14 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(p.next, V("1.1.0"))
         self.assertEqual(p.judgment, ["Performance: faster"])
 
+    def test_long_entries_are_shortened_in_reasons(self):
+        long = "- `Kernel`: the seams the agent resolves and writes through. " + "More detail. " * 30
+        p = propose(V("0.6.0"), {"Added": [long]}, first=FIRST)
+        self.assertEqual(p.reasons, ["Added: `Kernel`: the seams the agent resolves and writes through."])
+        p = propose(V("0.6.0"), {"Added": ["- " + "x" * 300]}, first=FIRST)
+        self.assertLessEqual(len(p.reasons[0]), len("Added: ") + 120)
+        self.assertTrue(p.reasons[0].endswith("…"))
+
     def test_pre_release_numbering(self):
         p = propose(V("0.3.0"), {"Added": ["- a"]}, first=FIRST, pre="rc", existing=[V("0.4.0-rc.1")])
         self.assertEqual(p.next, V("0.4.0-rc.2"))
