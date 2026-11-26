@@ -65,7 +65,7 @@ class Status:
     findings: list = field(default_factory=list)
 
 
-def _parse_declared(spec: str, raw: Optional[str]) -> Optional[Version]:
+def parse_declared(spec: str, raw: Optional[str]) -> Optional[Version]:
     if raw is None:
         return None
     try:
@@ -196,7 +196,7 @@ def _check_sources(s: Survey, latest: Optional[Version]) -> None:
         s.stops.append("several unrelated versions were found (a monorepo): independently versioned packages "
                        "are not supported")
         return
-    declared = {_parse_declared(spec, raw) for spec, raw in plain}
+    declared = {parse_declared(spec, raw) for spec, raw in plain}
     declared.discard(None)
     if len(declared) > 1:
         s.stops.append("the version sources disagree: " + ", ".join(f"{spec}={raw}" for spec, raw in plain))
@@ -280,7 +280,7 @@ def status(root: Path, settings: Settings) -> Status:
             findings.append(error(spec, 1, "sources", "no version found"))
             continue
         declared[spec] = raw
-        versions.add(_parse_declared(spec, raw))
+        versions.add(parse_declared(spec, raw))
 
     cl_latest, entries = None, {}
     cl_path = _changelog_path(root, settings.changelog)

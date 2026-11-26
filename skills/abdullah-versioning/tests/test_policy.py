@@ -84,6 +84,11 @@ class PolicyTests(unittest.TestCase):
         self._write("CONTRIBUTING.md", "# Contributing\n\nNo block here.\n")
         self.assertIsNone(ver_policy.find_policy(self.root))
 
+    def test_first_version(self):
+        self.assertEqual(ver_policy.read_settings(None).first_version, "0.1.0")
+        s = ver_policy.read_settings(self._write("a.md", _block("layout: main", "first-version: 1.0.0")))
+        self.assertEqual(s.first_version, "1.0.0")
+
     def test_bad_layout(self):
         with self.assertRaises(ValueError) as cm:
             ver_policy.read_settings(self._write("a.md", _block("layout: gitflow")))

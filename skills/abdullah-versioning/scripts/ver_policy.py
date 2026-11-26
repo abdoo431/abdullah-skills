@@ -27,6 +27,7 @@ class Settings:
     release_branch: str = "release/{version}"
     hotfix_branch: str = "hotfix/{version}-{name}"
     support_branch: str = "support/{major}.{minor}.x"
+    first_version: str = "0.1.0"
 
 
 def _csv(value: str) -> list:
@@ -61,7 +62,7 @@ def read_settings(policy: Optional[Path]) -> Settings:
                 dev_suffix = None if value.lower() == "none" else value
             elif key == "pre-releases":
                 s.pre_releases = [] if value.lower() == "none" else _csv(value)
-            elif key in ("release-branch", "hotfix-branch", "support-branch"):
+            elif key in ("release-branch", "hotfix-branch", "support-branch", "first-version"):
                 setattr(s, key.replace("-", "_"), value)
     if dev_suffix is _UNSET:
         s.dev_suffix = None if s.layout == "main" else "dev"
