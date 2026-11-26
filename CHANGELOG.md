@@ -6,8 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `abdullah-versioning` skill: proposes the next version and which part goes up from the changelog's `[Unreleased]` entries, keeps every file that declares the version in agreement (.NET, Python, Node, Rust, plugin manifests, a `VERSION` file, or any file through a pattern), and runs releases, pre-releases, hotfixes and fixes for older release lines on a `dev` → `staging` → `main`, `dev` and `main`, or `main` layout. See [docs/abdullah-versioning.md](docs/abdullah-versioning.md).
+- `setup-abdullah-versioning` skill: surveys a project's tags, version files, changelog and branches, tells a new project from one with releases, and drafts its release policy and agent-instructions section for approval before writing them. See [docs/setup-abdullah-versioning.md](docs/setup-abdullah-versioning.md).
+
 ### Changed
 
+- `abdullah-docs`: `--release` also applies on branches that fix a release candidate on `staging`.
 - Install routes: Claude Code, Codex and `npx skills` are marked tested against the published repository, with the agent versions used; Copilot and Gemini stay untested. The `npx skills` route shows the command that installs without prompts.
 
 ## [0.1.0] - 2026-11-25

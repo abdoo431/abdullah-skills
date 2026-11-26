@@ -9,6 +9,7 @@ This is the map of this repository's documentation: what each document answers a
 | README | [`README.md`](../README.md) | What the skills fix, how to install them, and the skill list |
 | Documentation policy | [`docs/DOCUMENTATION.md`](DOCUMENTATION.md) | Where each kind of document lives, and what "done" means |
 | Changelog | [`CHANGELOG.md`](../CHANGELOG.md) | What changed in each version |
+| Release policy | [`docs/RELEASING.md`](RELEASING.md) | How versions are numbered and releases cut |
 | Contributing | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | How to report a problem |
 
 ## The skills
@@ -17,6 +18,8 @@ This is the map of this repository's documentation: what each document answers a
 |---|---|---|
 | abdullah-docs | [`docs/abdullah-docs.md`](abdullah-docs.md) | What the documentation skill does and how to tell it works |
 | setup-abdullah-docs | [`docs/setup-abdullah-docs.md`](setup-abdullah-docs.md) | What the setup does and what it writes |
+| abdullah-versioning | [`docs/abdullah-versioning.md`](abdullah-versioning.md) | What the versioning skill does and how to tell it works |
+| setup-abdullah-versioning | [`docs/setup-abdullah-versioning.md`](setup-abdullah-versioning.md) | What the release setup does and what it writes |
 | The skills themselves | [`skills/`](../skills/) | The instructions agents read: each skill's `SKILL.md` and reference pages |
 
 ## Decisions and designs

@@ -24,7 +24,7 @@ Add one for every user-visible or behavioral change: a feature, a changed defaul
 
 A merge can move the `[Unreleased]` heading, leaving this branch's entry under a version that has already shipped. `check_docs.py` reports it as `changelog: line added below the Unreleased section`. Move the entry back under `[Unreleased]`.
 
-On the project's release and hotfix branches, moving entries into a version section is the point of the branch: pass `--release` to `check_docs.py` there.
+On the project's release and hotfix branches, and on branches that fix a release candidate on `staging`, moving entries into a version section is the point of the branch: pass `--release` to `check_docs.py` there.
 
 ## Boundary with versioning
 

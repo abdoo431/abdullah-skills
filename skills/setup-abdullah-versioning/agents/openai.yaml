@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup Abdullah Versioning"
+  short_description: "Set up a project for abdullah-versioning"
+policy:
+  allow_implicit_invocation: false

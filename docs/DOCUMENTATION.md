@@ -10,7 +10,7 @@ base: origin/main
 specs: docs/design
 plans: docs/plans
 history: docs/plans/**, docs/design/**
-examples: skills/**, README.md, CLAUDE.md, AGENTS.md, docs/abdullah-docs.md, docs/setup-abdullah-docs.md, .agents/install-block.md, .agents/writing-docs.md
+examples: skills/**, README.md, CLAUDE.md, AGENTS.md, docs/abdullah-docs.md, docs/setup-abdullah-docs.md, docs/abdullah-versioning.md, docs/setup-abdullah-versioning.md, .agents/install-block.md, .agents/writing-docs.md
 ```
 
 The block above holds the settings the documentation checks read: the ADR folder, the base branch, the spec and plan folders, documents that are history, and files whose paths describe other projects. A key left out means the default. The skills' own pages, the README, the agent instructions and the docs pages are examples: their backticked paths describe the projects the skills run in, not this repository.
@@ -48,6 +48,7 @@ This repository uses the `lean` profile: the map, the changelog, the ADR folder,
 |---|---|---|
 | Documentation map | `docs/README.md` | |
 | Changelog | `CHANGELOG.md` | [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format |
+| Release policy | `docs/RELEASING.md` | Read by `abdullah-versioning` |
 | ADRs | `.agents/adr/` | `NNNN-<title>.md`, listed in `.agents/adr/README.md` |
 | Designs | `docs/design/` | `YYYY-MM-DD-<topic>-design.md` |
 | Plans | `docs/plans/` | `YYYY-MM-DD-<topic>.md` |

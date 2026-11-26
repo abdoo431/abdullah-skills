@@ -3,12 +3,12 @@
   "owner": {
     "name": "Abdullah Hassan"
   },
-  "description": "The abdullah-skills plugin: agent skills for traceable project documentation and, next, versioning.",
+  "description": "The abdullah-skills plugin: agent skills for traceable project documentation, and for versions and releases.",
   "plugins": [
     {
       "name": "abdullah-skills",
       "source": "./",
-      "description": "Agent skills for traceable project documentation and, next, versioning.",
+      "description": "Agent skills for traceable project documentation, and for versions and releases.",
       "category": "documentation"
     }
   ]
