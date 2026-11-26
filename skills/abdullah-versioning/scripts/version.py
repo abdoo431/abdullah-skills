@@ -24,6 +24,7 @@ import argparse
 import json
 import sys
 from dataclasses import asdict
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -33,6 +34,8 @@ import ver_findings  # noqa: E402
 import ver_git  # noqa: E402
 import ver_plan  # noqa: E402
 import ver_policy  # noqa: E402
+import ver_semver  # noqa: E402
+import ver_sources  # noqa: E402
 import ver_survey  # noqa: E402
 from ver_semver import STAGES, Version  # noqa: E402
 
@@ -226,7 +229,156 @@ def _check(args) -> int:
     return ver_findings.exit_code(findings)
 
 
-HANDLERS = {"survey": _survey, "status": _status, "plan": _plan, "notes": _notes, "check": _check}
+# --- the writing commands ------------------------------------------------------------
+
+class _Context:
+    """What every writing command needs, read once before anything is written."""
+
+    def __init__(self, args):
+        self.root = Path(args.root)
+        self.settings = _settings(args)
+        self.status = ver_survey.status(self.root, self.settings)
+        specs = self.settings.sources or [s.spec for s in ver_sources.discover(self.root)]
+        if not specs:
+            raise Refused("no version sources: run the setup first")
+        self.sources = [ver_sources.parse_source(spec) for spec in specs]
+        errors = [f for f in self.status.findings if f.severity == "error"]
+        if errors:
+            raise Refused(errors[0].message)
+        if not self.status.agree:
+            detail = ", ".join(f"{spec}={raw}" for spec, raw in self.status.declared.items())
+            raise Refused(f"the declared versions already disagree: {detail}")
+        tags = ver_git.tag_versions(self.root, self.settings.tag)
+        self.finals = [v for _, v in tags if v.is_final]
+        self.pres = [v for _, v in tags if not v.is_final]
+        self.branches = ver_git.branches(self.root)
+        self.declared = next((ver_survey.parse_declared(s, r) for s, r in self.status.declared.items()), None)
+
+    def latest_for(self, target: Version):
+        """The latest final release the target must exceed (C19, C21)."""
+        if not self.finals:
+            return None
+        line = (target.major, target.minor)
+        newest = max(self.finals)
+        support = self.settings.support_branch.replace("{major}", str(line[0])).replace("{minor}", str(line[1]))
+        if self.status.role == "support" or (target.final < newest and support in self.branches):
+            in_line = [v for v in self.finals if (v.major, v.minor) == line]
+            return max(in_line) if in_line else None
+        return newest
+
+    def tag_of(self, v: Version) -> str:
+        return self.settings.tag.replace("{version}", str(v))
+
+
+def _check_target(ctx: _Context, target: Version, args, *, strict: bool) -> None:
+    role = ctx.status.role
+    if role in ("production", "staging", "integration") and not args.allow_long_lived:
+        raise Refused(f"{ctx.status.branch} is the {role} branch: change the version on a release or hotfix "
+                      "branch, or pass --allow-long-lived for a local merge")
+    if role == "support":
+        line = ver_survey.support_line(ctx.status.branch, ctx.settings)
+        if line and (target.major, target.minor) != line:
+            raise Refused(f"{target} is outside the {line[0]}.{line[1]} line of {ctx.status.branch}")
+    if target.final.major >= 1 and not any(v.major >= 1 for v in ctx.finals) and not args.first_major:
+        raise Refused(f"{target} would be the first 1.0.0 or later: only the owner declares it (--first-major)")
+    if ctx.declared is not None and target == ctx.declared and not strict:
+        return
+    latest = ctx.latest_for(target)
+    if latest is not None and not (target.final > latest):
+        raise Refused(f"{target} is not after the latest release, {latest}")
+    if not target.is_final and target.stage in STAGES:
+        same = [v for v in ctx.pres if v.final == target.final and v.stage in STAGES]
+        if same:
+            top = max(same)
+            if STAGES.index(target.stage) < STAGES.index(top.stage):
+                raise Refused(f"{top} exists: a pre-release never goes back to {target.stage}")
+            if target < top:
+                raise Refused(f"{target} is below {top}, which already exists")
+
+
+def _write_all(ctx: _Context, changelog_text, target: Version) -> list:
+    written = []
+    for src in ctx.sources:
+        if src.kind != "tag" and ver_sources.read_raw(ctx.root, src) is None:
+            raise Refused(f"{src.path}: no version found")
+    if changelog_text is not None:
+        path = ctx.root / ctx.settings.changelog
+        _, newline, bom = ver_changelog.read_text(path)
+        ver_changelog.write_text(path, changelog_text, newline, bom)
+        written.append(ctx.settings.changelog)
+    for src in ctx.sources:
+        if src.kind == "tag":
+            continue
+        ver_sources.write_version(ctx.root, src, target)
+        written.append(src.path)
+    return written
+
+
+def _today(args) -> str:
+    return args.date or date.today().isoformat()
+
+
+def _prepare(args) -> int:
+    ctx = _Context(args)
+    final = args.version
+    if not final.is_final:
+        raise Refused("prepare takes a release version X.Y.Z; use --pre for a pre-release")
+    if args.pre and args.pre not in STAGES:
+        raise Refused(f"{args.pre!r} is not a pre-release stage: use alpha, beta or rc")
+    target = ver_semver.next_pre(final, args.pre, ctx.pres) if args.pre else final
+    _check_target(ctx, target, args, strict=True)
+    text = _changelog_text(ctx.root, ctx.settings)
+    latest = ctx.latest_for(final)
+    new_text = ver_changelog.cut(text, final, _today(args), ctx.tag_of(latest) if latest else None, ctx.settings.tag)
+    for path in _write_all(ctx, new_text, target):
+        print(f"wrote: {path}")
+    print(f"declared: {target}")
+    for bullet in ver_changelog.fold_candidates(new_text, final):
+        print(f"fold: {bullet.splitlines()[0]}")
+    return 0
+
+
+def _declare(args) -> int:
+    ctx = _Context(args)
+    target = args.version
+    _check_target(ctx, target, args, strict=False)
+    new_text = None
+    if target.is_final or target.stage in STAGES:
+        text = _changelog_text(ctx.root, ctx.settings) if (ctx.root / ctx.settings.changelog).is_file() else None
+        is_open = text is not None and target.final not in ctx.finals and any(
+            s.version == target.final for s in ver_changelog.sections(text))
+        if is_open:
+            new_text = ver_changelog.fold_unreleased_into(text, target.final)
+            if target.is_final:
+                new_text = ver_changelog.set_date(new_text, target.final, _today(args))
+            if new_text == text:
+                new_text = None
+    for path in _write_all(ctx, new_text, target):
+        print(f"wrote: {path}")
+    print(f"declared: {target}")
+    return 0
+
+
+def _carry(args) -> int:
+    root, settings = Path(args.root), _settings(args)
+    other = ver_git.show(root, args.ref, settings.changelog)
+    if other is None:
+        raise Refused(f"{args.ref} has no {settings.changelog}")
+    other = other.replace("\r\n", "\n")
+    sec = next((s for s in ver_changelog.sections(other) if s.version == args.version), None)
+    if sec is None:
+        raise Refused(f"{args.ref} has no [{args.version}] section")
+    lines = other.split("\n")
+    block = "\n".join([lines[sec.start], "", ver_changelog.section_body(other, args.version)])
+    path = root / settings.changelog
+    text, newline, bom = ver_changelog.read_text(path)
+    ver_changelog.write_text(path, ver_changelog.insert_section(text, block, args.version), newline, bom)
+    print(f"wrote: {settings.changelog}")
+    return 0
+
+
+HANDLERS = {"survey": _survey, "status": _status, "plan": _plan, "notes": _notes, "check": _check,
+            "prepare": _prepare, "declare": _declare, "carry": _carry}
 
 
 def main(argv=None) -> int:
