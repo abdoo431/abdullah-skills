@@ -102,6 +102,32 @@ class ChangelogTests(unittest.TestCase):
         self.assertEqual(sec.entries["Fixed"], ["- b"])
         self.assertEqual(cl.fold_unreleased_into(out, V("0.2.0")), out)
 
+    def test_fold_keeps_every_line_of_the_open_section(self):
+        text = ("## [Unreleased]\n\n### Fixed\n\n- b\n  wrapped\n\n### Added\n\n- c\n\n"
+                "## [0.2.0] - 2026-11-26\n\nThis release needs a migration; read UPGRADING.md.\n\n"
+                "### Added\n\n- a\nunindented continuation\n\n## [0.1.0] - 2026-11-03\n\n- old\n")
+        expected = ("## [Unreleased]\n\n"
+                    "## [0.2.0] - 2026-11-26\n\nThis release needs a migration; read UPGRADING.md.\n\n"
+                    "### Added\n\n- a\nunindented continuation\n- c\n\n### Fixed\n\n- b\n  wrapped\n\n"
+                    "## [0.1.0] - 2026-11-03\n\n- old\n")
+        self.assertEqual(cl.fold_unreleased_into(text, V("0.2.0")), expected)
+
+    def test_fold_places_a_new_subsection_in_keep_a_changelog_order(self):
+        text = "## [Unreleased]\n\n### Added\n\n- c\n\n## [0.2.0] - 2026-11-26\n\n### Fixed\n\n- b\n"
+        out = cl.fold_unreleased_into(text, V("0.2.0"))
+        self.assertEqual(out, "## [Unreleased]\n\n## [0.2.0] - 2026-11-26\n\n### Added\n\n- c\n\n### Fixed\n\n- b\n")
+
+    def test_replace_section_moves_this_branchs_own_entries_back(self):
+        ours = ("## [Unreleased]\n\n## [0.2.0] - 2026-11-26\n\n### Added\n\n- Export.\n- next work\n\n"
+                "## [0.1.0] - 2026-11-03\n\n- old\n")
+        theirs = "## [0.2.0] - 2026-12-01\n\n### Added\n\n- Export.\n\n### Fixed\n\n- A crash."
+        out = cl.replace_section(ours, theirs, V("0.2.0"))
+        self.assertEqual(out, "## [Unreleased]\n\n### Added\n\n- next work\n\n"
+                              "## [0.2.0] - 2026-12-01\n\n### Added\n\n- Export.\n\n### Fixed\n\n- A crash.\n\n"
+                              "## [0.1.0] - 2026-11-03\n\n- old\n")
+        with self.assertRaises(ValueError):
+            cl.replace_section(ours, "## [0.3.0] - 2026-12-01\n\n- x", V("0.3.0"))
+
     def test_set_date_and_section_body(self):
         out = cl.set_date(CUT, V("0.2.0"), "2026-12-01")
         self.assertIn("## [0.2.0] - 2026-12-01\n", out)

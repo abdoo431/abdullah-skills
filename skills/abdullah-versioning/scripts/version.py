@@ -14,7 +14,8 @@ abdullah-versioning block):
                                       the cut: move [Unreleased] into [X.Y.Z], declare X.Y.Z or its first pre-release
   declare VERSION [--date YYYY-MM-DD] [--first-major] [--allow-long-lived]
                                       write a version into every source (next rc.N, final, -dev, or a branch's own)
-  carry X.Y.Z --from REF              copy a released section from another branch's changelog
+  carry X.Y.Z --from REF [--replace] copy a version section from another branch's changelog;
+                                      --replace aligns one this branch already has (a back-merge)
 
 The script never fetches, commits, tags, pushes or calls a hosting service.
 Findings print one per line as path:line: severity: kind: message.
@@ -87,6 +88,8 @@ def _parser() -> argparse.ArgumentParser:
     p = command("carry", "copy a released changelog section from another branch")
     p.add_argument("version", type=_version_arg)
     p.add_argument("--from", dest="ref", required=True, help="the branch or tag to copy from")
+    p.add_argument("--replace", action="store_true",
+                   help="replace this branch's copy of the section (a back-merge); its own entries move to [Unreleased]")
     return ap
 
 
@@ -442,7 +445,13 @@ def _carry(args) -> int:
     block = "\n".join([lines[sec.start], "", ver_changelog.section_body(other, args.version)])
     path = _changelog_file(root, settings)
     text, newline, bom = ver_changelog.read_text(path)
-    ver_changelog.write_text(path, ver_changelog.insert_section(text, block, args.version), newline, bom)
+    present = any(s.version == args.version for s in ver_changelog.sections(text))
+    if args.replace and not present:
+        raise Refused(f"this changelog has no [{args.version}] section to replace: carry it without --replace")
+    if not args.replace and present:
+        raise Refused(f"[{args.version}] is already in the changelog: pass --replace to align it with {args.ref}")
+    new = (ver_changelog.replace_section if args.replace else ver_changelog.insert_section)(text, block, args.version)
+    ver_changelog.write_text(path, new, newline, bom)
     print(f"wrote: {settings.changelog}")
     return 0
 

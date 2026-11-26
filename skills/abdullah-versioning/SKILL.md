@@ -64,7 +64,7 @@ python <this skill's folder>/scripts/version.py <command> --root <repo> [--polic
 | `version.py check` | Declared versions agree, suit the branch's role, and the changelog's sections are in order | nothing |
 | `version.py prepare X.Y.Z [--pre STAGE] [--date D]` | The cut: moves `[Unreleased]` into `[X.Y.Z]` and declares `X.Y.Z` or its first pre-release | changelog, sources |
 | `version.py declare VERSION [--date D]` | Declares the next `rc.N`, the final release, the next `-dev`, or a branch's own version after a back-merge | sources; the changelog for a pre-release or final |
-| `version.py carry X.Y.Z --from REF` | Copies a released section from another branch's changelog, in version order | changelog |
+| `version.py carry X.Y.Z --from REF [--replace]` | Copies a version section from another branch's changelog, in version order; `--replace` aligns a section this branch already has, after a back-merge | changelog |
 
 - `--first-major` is passed only after the owner declares `1.0.0`. `--allow-long-lived` is passed only in a local merge on the production, staging or integration branch itself (no pull request).
 - Exit codes: 0 done or clean, 1 refused or errors found, 2 usage error. A refusal changes no file; read its message, fix the cause, and run it again. Never work around a refusal by editing files by hand.

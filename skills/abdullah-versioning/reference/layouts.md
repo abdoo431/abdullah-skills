@@ -59,12 +59,14 @@ No `-dev` by default: between releases the production branch declares the last r
 
 ## Back-merges
 
-Every back-merge (after a cut, an `rc.N`, a final release, a hotfix) can conflict in version files and the changelog. Back-merge only after a `declare` has moved the sending branch's entries into its version section. Resolve in this order:
+Every back-merge (after a cut, an `rc.N`, a final release, a hotfix) can conflict in version files and the changelog, and even a merge without conflicts can put the receiving branch's new entries inside a version section. Back-merge only after a `declare` has moved the sending branch's entries into its version section. Then, conflict or not:
 
-1. **Version files:** take the receiving branch's side (`git checkout --ours <file>` while merging into it), then run `version.py declare <the receiving branch's own version>` (add `--allow-long-lived` when merging locally on the long-lived branch itself).
-2. **The changelog:** take the receiving branch's side, then run `version.py carry X.Y.Z --from <sending branch>` for each released section the sending branch has and this one lacks.
+1. **Version files:** on a conflict, take the receiving branch's side (`git checkout --ours <file>` while merging into it). Always run `version.py declare <the receiving branch's own version>`.
+2. **The changelog:** on a conflict, take the receiving branch's side. Then, for every version section the sending branch has, run `version.py carry X.Y.Z --from <sending branch> --replace` when this branch has the section, and `version.py carry X.Y.Z --from <sending branch>` when it lacks it. `--replace` makes the section the sending branch's copy and moves any entry only this branch had back under `[Unreleased]`.
 3. **Anything else:** resolve as in any merge.
 4. `version.py check` must pass before the merge is committed.
+
+Do this either on the receiving long-lived branch itself in a local merge (pass `--allow-long-lived` to `declare`), or on a branch named with the release pattern, for example `release/0.3.0-dev-merge`, that then merges into it. A work branch (`chore/…`) may not change the version.
 
 ## Merges, pull requests and tags
 

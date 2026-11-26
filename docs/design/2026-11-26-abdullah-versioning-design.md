@@ -306,7 +306,7 @@ forward-port: does the defect exist in newer lines? if yes, fix it there too
 Every back-merge (after a cut, after an `rc.N`, after a final release, after a hotfix) can conflict in three places. The agent resolves them, in this order, and the script makes each step mechanical (C18):
 
 1. **Version files:** take either side, then run `version.py declare <this branch's own version>`, which rewrites every source, lock files included, to the receiving branch's version (`dev` keeps its `-dev`, `staging` its `rc.N`).
-2. **The changelog:** keep both sides' entries; released sections come from the side that released them, and `[Unreleased]` keeps the receiving branch's own entries. The result has `[Unreleased]` first and version sections in descending order.
+2. **The changelog:** keep both sides' entries; released sections come from the side that released them, and `[Unreleased]` keeps the receiving branch's own entries. The result has `[Unreleased]` first and version sections in descending order. Mechanically, after every back-merge, conflict or not: take the receiving side on a conflict, then `carry --replace` each version section the sending branch has and this one has too, and `carry` each one this branch lacks. `--replace` also moves back under `[Unreleased]` any entry of the receiving branch that the merge put inside a version section.
 3. **Anything else** is an ordinary merge conflict, resolved as in any merge.
 
 Then `version.py check` must pass before the merge is committed. It reports a source that disagrees with the branch's role, a version section that appears twice, and sections out of order.
@@ -338,6 +338,7 @@ pre-releases: rc
 release-branch: release/{version}
 hotfix-branch: hotfix/{version}-{name}
 support-branch: support/{major}.{minor}.x
+first-version: 0.1.0
 ```
 ````
 
@@ -350,6 +351,7 @@ support-branch: support/{major}.{minor}.x
 | `changelog` | The changelog file | `CHANGELOG.md` |
 | `dev-suffix` | The label for in-between builds, or `none` | `dev` in layouts with an integration branch, `none` in `main` |
 | `pre-releases` | The stages used, from `alpha, beta, rc`, or `none` | `rc` |
+| `first-version` | The first release of a new project (§5.3) | `0.1.0` |
 | `release-branch`, `hotfix-branch`, `support-branch` | Branch name patterns | `release/{version}`, `hotfix/{version}-{name}`, `support/{major}.{minor}.x` |
 
 Flags on the command line override the block, as in `abdullah-docs` (its C13).
@@ -374,7 +376,7 @@ Exit codes: 0 done or clean, 1 refused or problems found, 2 usage error (nothing
 | `prepare X.Y.Z [--pre STAGE] [--date YYYY-MM-DD]` | The cut: move `[Unreleased]` into `## [X.Y.Z] - date`, update the changelog's comparison links, apply the `Fixed`-into-`Added` check (reported, not applied: the agent folds), declare `X.Y.Z` or its first pre-release | changelog, sources |
 | `declare VERSION` | Write a version into every source: the next `rc.N`, the final `X.Y.Z` (and the section's date), the next `-dev`, or a branch's own version after a back-merge (§7.6). On a branch with an open version section (no final tag yet), a pre-release or final `declare` also moves the `[Unreleased]` entries into that section (C17) | sources; the changelog for a pre-release or final |
 | `notes X.Y.Z` | Print the changelog section, for the GitHub Release | nothing |
-| `carry X.Y.Z --from REF` | Copy a released version section from another branch's changelog into this one, in version order (§7.5.1) | changelog |
+| `carry X.Y.Z --from REF [--replace]` | Copy a version section from another branch's changelog into this one, in version order (§7.5.1). `--replace` aligns a section this branch already has with the other branch's copy, and moves entries only this branch had back under `[Unreleased]` (§7.6) | changelog |
 | `check` | Sources agree with each other; the latest tag, the changelog's latest section and the sources are consistent for the branch's role; no version section appears twice and sections are in order (§7.6) | nothing |
 
 **Refusals,** each before any file changes:

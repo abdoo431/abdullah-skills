@@ -158,34 +158,89 @@ def _update_links(text: str, version: Version, previous_tag: Optional[str], tag_
     return _join(lines)
 
 
-def _render_entries(entries: dict) -> list:
-    out = []
-    names = [n for n in ORDER if n in entries] + [n for n in entries if n not in ORDER]
-    for name in names:
-        items = entries[name]
-        if not items:
+def replace_section(text: str, heading_and_body: str, version: Version) -> str:
+    """Replace this text's [version] section with another branch's copy of it (a back-merge).
+
+    Entries only this branch's copy has are this branch's own work, misplaced by the merge:
+    they move back under [Unreleased], in their subsections.
+    """
+    secs = sections(text)
+    target = _find(secs, version)
+    block = _trim(_lines(heading_and_body.replace("\r\n", "\n")))
+    theirs = _entries(block[1:])
+    moved = {name: [b for b in items if b not in theirs.get(name, [])] for name, items in target.entries.items()}
+    moved = {name: items for name, items in moved.items() if items}
+    lines = _lines(text)
+    out = lines[:target.start] + block + [""] + lines[target.end:]
+    if not moved:
+        return _join(out)
+    text = _join(out)
+    un = _unreleased_section(sections(text))
+    if un is None:
+        raise ValueError("no [Unreleased] section to move this branch's own entries to")
+    lines = _lines(text)
+    pre, blocks = _blocks(lines[un.start + 1:un.end])
+    for name, items in moved.items():
+        body = [line for item in items for line in item.split("\n")]
+        same = next((b for b in blocks if b[0] == name), None)
+        if same:
+            same[1] = _trim(same[1]) + body
             continue
-        if name:
-            out += [f"### {name}", ""]
-        for item in items:
-            out += item.split("\n")
-        out.append("")
-    return out[:-1] if out else out
+        at = next((i for i, b in enumerate(blocks) if _rank(b[0]) > _rank(name)), len(blocks))
+        blocks.insert(at, [name, body])
+    rendered = [lines[un.start], ""] + (_trim(pre) + [""] if _trim(pre) else [])
+    for name, body in blocks:
+        rendered += [f"### {name}", ""] + _trim(body) + [""]
+    return _join(lines[:un.start] + rendered + lines[un.end:])
+
+
+def _blocks(body: list):
+    """(lines before the first ### heading, [[name, lines under the heading], ...]), every line kept."""
+    pre, blocks = [], []
+    for line in body:
+        h3 = _H3_RE.match(line)
+        if h3:
+            blocks.append([h3.group(1), []])
+        elif blocks:
+            blocks[-1][1].append(line)
+        else:
+            pre.append(line)
+    return pre, blocks
+
+
+def _rank(name: str) -> int:
+    return ORDER.index(name) if name in ORDER else len(ORDER)
 
 
 def fold_unreleased_into(text: str, version: Version) -> str:
+    """Move the [Unreleased] entries into the open [version] section, keeping every line of both."""
     secs = sections(text)
     un = _unreleased_section(secs)
     if un is None or not any(un.entries.values()):
         return text
     target = _find(secs, version)
-    merged = {name: list(items) for name, items in target.entries.items()}
-    for name, items in un.entries.items():
-        merged.setdefault(name, []).extend(items)
     lines = _lines(text)
+    un_pre, un_blocks = _blocks(lines[un.start + 1:un.end])
+    pre, blocks = _blocks(lines[target.start + 1:target.end])
+    pre = _trim(pre)
+    if _trim(un_pre):
+        pre = pre + ([""] if pre else []) + _trim(un_pre)
+    for name, body in un_blocks:
+        body = _trim(body)
+        if not body:
+            continue
+        same = next((b for b in blocks if b[0] == name), None)
+        if same:
+            same[1] = _trim(same[1]) + body
+            continue
+        at = next((i for i, b in enumerate(blocks) if _rank(b[0]) > _rank(name)), len(blocks))
+        blocks.insert(at, [name, body])
+    rendered = [lines[target.start], ""] + (pre + [""] if pre else [])
+    for name, body in blocks:
+        rendered += [f"### {name}", ""] + _trim(body) + [""]
     replacement = {
         un.start: [lines[un.start], ""],
-        target.start: [lines[target.start], ""] + _render_entries(merged) + [""],
+        target.start: rendered,
     }
     out, cursor = [], 0
     for sec in sorted([un, target], key=lambda s: s.start):

@@ -82,16 +82,13 @@ class Flow:
         self.repo.checkout(into)
         merged = self.repo.run("merge", "--no-ff", "--no-edit", source).returncode == 0
         if not merged:
-            conflicted = self.git("diff", "--name-only", "--diff-filter=U").stdout.split()
-            for path in conflicted:
+            for path in self.git("diff", "--name-only", "--diff-filter=U").stdout.split():
                 self.git("checkout", "--ours", path)
-            if "CHANGELOG.md" in conflicted:
-                theirs = self.repo.run("show", f"{source}:CHANGELOG.md").stdout
-                ours = self.read("CHANGELOG.md")
-                have = {s.version for s in ver_changelog.sections(ours) if s.version}
-                for sec in ver_changelog.sections(theirs):
-                    if sec.version and sec.version not in have:
-                        self.v("carry", str(sec.version), "--from", source)
+        theirs = self.repo.run("show", f"{source}:CHANGELOG.md").stdout
+        have = {s.version for s in ver_changelog.sections(self.read("CHANGELOG.md")) if s.version}
+        for sec in ver_changelog.sections(theirs):
+            if sec.version:
+                self.v("carry", str(sec.version), "--from", source, *(["--replace"] if sec.version in have else []))
         self.v("declare", own_version, "--allow-long-lived")
         self.git("add", "-A")
         if not merged:

@@ -255,6 +255,26 @@ class CliWriteTests(unittest.TestCase):
             self.assertEqual(target.read_bytes(), before)
         del repo
 
+    def test_carry_replace_aligns_an_open_section(self):
+        repo = make(self.root)
+        run("prepare", "0.2.0", "--pre", "rc", "--date", "2026-11-26", "--root", str(self.root))
+        repo.commit("cut")
+        repo.branch("release/0.2.0-rc.2")
+        repo.write("CHANGELOG.md", self.read("CHANGELOG.md").replace(
+            "## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A crash.\n", 1))
+        self.assertEqual(run("declare", "0.2.0-rc.2", "--root", str(self.root))[0], 0)
+        repo.commit("rc.2")
+        repo.checkout("release/0.2.0")
+        repo.write("CHANGELOG.md", self.read("CHANGELOG.md").replace("- Export.\n", "- Export.\n- next work\n", 1))
+        self.assertEqual(run("carry", "0.2.0", "--from", "release/0.2.0-rc.2", "--root", str(self.root))[0], 1)
+        code, _, err = run("carry", "0.2.0", "--from", "release/0.2.0-rc.2", "--replace", "--root", str(self.root))
+        self.assertEqual(code, 0, err)
+        cl = self.read("CHANGELOG.md")
+        self.assertIn("## [Unreleased]\n\n### Added\n\n- next work\n\n## [0.2.0]", cl)
+        self.assertIn("### Fixed\n\n- A crash.", cl)
+        code, _, _ = run("carry", "0.3.0", "--from", "release/0.2.0-rc.2", "--replace", "--root", str(self.root))
+        self.assertEqual(code, 1)
+
     def test_tag_source_writes_nothing(self):
         make(self.root, sources="tag")
         code, _, err = run("prepare", "0.2.0", "--date", "2026-11-26", "--root", str(self.root))
