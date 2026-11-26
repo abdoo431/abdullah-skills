@@ -1,3 +1,4 @@
+import stat
 import sys
 import tempfile
 import unittest
@@ -8,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from .fixtures import Repo  # noqa: E402
 from .test_cli_read import run  # noqa: E402
 
-POLICY = "# Releasing\n\n```abdullah-versioning\nlayout: dev-main\nsources: {sources}\n```\n"
+POLICY = "# Releasing\n\n```abdullah-versioning\nlayout: {layout}\nsources: {sources}\n{extra}```\n"
 CHANGELOG = """# Changelog
 
 ## [Unreleased]
@@ -24,13 +25,13 @@ CHANGELOG = """# Changelog
 
 
 def make(root: Path, unreleased: str = "### Added\n\n- Export.", sources: str = "VERSION, app/__init__.py",
-         version: str = "0.1.0") -> Repo:
+         version: str = "0.1.0", layout: str = "dev-main", extra: str = "") -> Repo:
     """main tagged v0.1.0, then dev and release/0.2.0; the files declare `version`."""
     repo = Repo(root)
     repo.write("VERSION", f"{version}\n")
     repo.write("app/__init__.py", f'__version__ = "{version}"\n')
     repo.write("CHANGELOG.md", CHANGELOG.format(unreleased=unreleased))
-    repo.write("docs/RELEASING.md", POLICY.format(sources=sources))
+    repo.write("docs/RELEASING.md", POLICY.format(sources=sources, layout=layout, extra=extra))
     repo.commit("init")
     repo.tag("v0.1.0")
     repo.branch("dev")
@@ -125,7 +126,34 @@ class CliWriteTests(unittest.TestCase):
             repo = make(root)
             repo.run("checkout", "-q", "-b", "support/0.1.x", "v0.1.0")
 
+        def on_work_branch(root):
+            make(root).branch("feature/x")
+
+        def detached(root):
+            make(root).detach()
+
+        def unrenderable(root):
+            make(root)  # VERSION takes any label, the Python source has no PEP 440 form for -snapshot
+
+        def open_section(root):
+            repo = make(root)
+            run("prepare", "0.2.0", "--pre", "rc", "--date", "2026-11-26", "--root", str(root))
+            text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+            repo.write("CHANGELOG.md", text.replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A crash.\n", 1))
+            repo.commit("cut")
+
+        def shared_prefix(root):
+            repo = make(root, extra="support-branch: release/{major}.{minor}.x\n")
+            repo.checkout("main")
+            repo.branch("release/0.0.5")
+
         cases = {
+            "work branch": (on_work_branch, "prepare", "0.2.0"),
+            "detached head": (detached, "declare", "0.2.0-dev"),
+            "no PEP 440 form for one source": (unrenderable, "declare", "0.2.0-snapshot"),
+            "a section for the version exists": (open_section, "prepare", "0.2.0", "--pre", "rc"),
+            "a final with no section": (make, "declare", "0.2.0"),
+            "support pattern sharing the release prefix": (shared_prefix, "prepare", "0.0.5"),
             "not greater": (make, "prepare", "0.1.0"),
             "empty unreleased": (lambda r: make(r, unreleased=""), "prepare", "0.2.0"),
             "sources disagree": (disagree, "prepare", "0.2.0"),
@@ -138,6 +166,38 @@ class CliWriteTests(unittest.TestCase):
         for name, (setup, *argv) in cases.items():
             with self.subTest(name):
                 self._refused(setup, *argv)
+
+    def test_a_write_that_fails_part_way_changes_nothing(self):
+        make(self.root)
+        before = snapshot(self.root)
+        locked = self.root / "app" / "__init__.py"
+        locked.chmod(stat.S_IREAD)
+        try:
+            code, _, err = run("prepare", "0.2.0", "--root", str(self.root))
+        finally:
+            locked.chmod(stat.S_IREAD | stat.S_IWRITE)
+        self.assertEqual(code, 1, err)
+        self.assertNotIn("Traceback", err)
+        self.assertEqual(snapshot(self.root), before)
+
+    def test_main_layout_with_dev_suffix_passes_check(self):
+        repo = make(self.root, layout="main", extra="dev-suffix: dev\n")
+        repo.checkout("main")
+        self.assertEqual(run("declare", "0.2.0-dev", "--allow-long-lived", "--root", str(self.root))[0], 0)
+        code, out, err = run("check", "--root", str(self.root))
+        self.assertEqual(code, 0, out + err)
+
+    def test_plan_during_an_open_release_candidate(self):
+        repo = make(self.root)
+        run("prepare", "0.2.0", "--pre", "rc", "--date", "2026-11-26", "--root", str(self.root))
+        repo.commit("cut")
+        repo.tag("v0.2.0-rc.1")
+        text = self.read("CHANGELOG.md").replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A crash.\n", 1)
+        repo.write("CHANGELOG.md", text)
+        code, out, err = run("plan", "--root", str(self.root))
+        self.assertEqual(code, 0, err)
+        self.assertIn("next: 0.2.0-rc.2\n", out)
+        self.assertIn("open: 0.2.0\n", out)
 
     def test_hotfix_allowed_during_rc(self):
         repo = make(self.root, unreleased="### Fixed\n\n- A crash.", version="0.2.0")

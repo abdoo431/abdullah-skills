@@ -163,13 +163,32 @@ def _plan(args) -> int:
     root, settings = Path(args.root), _settings(args)
     st = ver_survey.status(root, settings)
     entries = ver_changelog.unreleased(_changelog_text(root, settings))
-    existing = [v for _, v in ver_git.tag_versions(root, settings.tag) if not v.is_final]
-    p = ver_plan.propose(st.latest, entries, first=Version.parse(settings.first_version), pre=args.pre,
-                         major=args.major, existing=existing)
+    tags = ver_git.tag_versions(root, settings.tag)
+    existing = [v for _, v in tags if not v.is_final]
+    finals = {v for _, v in tags if v.is_final}
+    text = _changelog_text(root, settings)
+    open_versions = [s.version for s in ver_changelog.sections(text)
+                     if s.version is not None and s.version.is_final and s.version not in finals
+                     and (st.latest is None or s.version > st.latest)]
+    if open_versions:
+        # A release is already cut and not yet tagged final: the next step is its next pre-release or the release.
+        target = max(open_versions)
+        pres = [v for v in existing if v.final == target]
+        stage = args.pre or (max(pres).stage if pres else None)
+        nxt = ver_semver.next_pre(target, stage, existing) if stage else target
+        base = ver_plan.propose(st.latest, entries, first=target) if any(entries.values()) else None
+        p = ver_plan.Proposal(st.latest, nxt, "open", base.reasons if base else [], base.judgment if base else [], stage)
+    else:
+        target = None
+        p = ver_plan.propose(st.latest, entries, first=Version.parse(settings.first_version), pre=args.pre,
+                             major=args.major, existing=existing)
     if args.json:
         print(json.dumps({"current": str(p.current) if p.current else None, "next": str(p.next), "part": p.part,
+                          "open": str(target) if target else None,
                           "reasons": p.reasons, "judgment": p.judgment, "pre": p.pre}, indent=2))
         return 0
+    if target:
+        print(f"open: {target}")
     print(f"current: {p.current or 'none'}")
     print(f"next: {p.next}")
     print(f"part: {p.part}")
@@ -203,6 +222,9 @@ def _role_finding(st, settings, declared: Version):
         ok = latest is None or (declared.final > latest if not declared.is_final else declared >= latest)
         want = f"a pre-release or release above {latest}"
     elif role == "production":
+        if settings.layout == "main" and settings.dev_suffix and declared.stage == settings.dev_suffix:
+            if latest is None or declared.final > latest:
+                return None
         if latest is not None and declared.is_final and declared > latest:
             return ver_findings.warning(path, 1, "role", f"{declared} is declared but not tagged yet (untagged release)")
         ok = latest is None or declared == latest
@@ -232,10 +254,31 @@ def _check(args) -> int:
             findings.append(f)
     cl_path = _changelog_file(root, settings)
     if cl_path.is_file():
-        for line, message in ver_changelog.problems(ver_changelog.read_text(cl_path)[0]):
+        text = ver_changelog.read_text(cl_path)[0]
+        for line, message in ver_changelog.problems(text):
             findings.append(ver_findings.error(settings.changelog, line, "changelog", message))
+        declared = next(iter(parsed.values()), None) if st.agree else None
+        findings += _changelog_findings(st, settings, text, declared)
     _print_findings(findings)
     return ver_findings.exit_code(findings)
+
+
+def _changelog_findings(st, settings, text: str, declared) -> list:
+    """A declared release needs its section; on production the newest section is the latest release."""
+    found = []
+    finals = [s.version for s in ver_changelog.sections(text) if s.version is not None and s.version.is_final]
+    if declared is not None and declared.is_final and declared not in finals:
+        found.append(ver_findings.error(settings.changelog, 1, "changelog",
+                                        f"no [{declared}] section for the declared version"))
+    if st.role == "production" and finals:
+        expected = st.latest
+        if declared is not None and declared.is_final and (expected is None or declared > expected):
+            expected = declared
+        newest = max(finals)
+        if expected is not None and newest != expected:
+            found.append(ver_findings.error(settings.changelog, 1, "changelog",
+                                            f"the newest released section is [{newest}], but the latest release is {expected}"))
+    return found
 
 
 # --- the writing commands ------------------------------------------------------------
@@ -261,6 +304,7 @@ class _Context:
         self.finals = [v for _, v in tags if v.is_final]
         self.pres = [v for _, v in tags if not v.is_final]
         self.branches = ver_git.branches(self.root)
+        self.git = ver_git.is_repo(self.root)
         self.declared = next((ver_survey.parse_declared(s, r) for s, r in self.status.declared.items()), None)
 
     def latest_for(self, target: Version):
@@ -284,6 +328,10 @@ def _check_target(ctx: _Context, target: Version, args, *, strict: bool) -> None
     if role in ("production", "staging", "integration") and not args.allow_long_lived:
         raise Refused(f"{ctx.status.branch} is the {role} branch: change the version on a release or hotfix "
                       "branch, or pass --allow-long-lived for a local merge")
+    if ctx.git and role in ("work", None) and not args.allow_long_lived:
+        where = f"{ctx.status.branch} is a work branch" if role == "work" else "HEAD is detached"
+        raise Refused(f"{where}: change the version on a release or hotfix branch "
+                      f"({ctx.settings.release_branch}, {ctx.settings.hotfix_branch})")
     if role == "support":
         line = ver_survey.support_line(ctx.status.branch, ctx.settings)
         if line and (target.major, target.minor) != line:
@@ -306,21 +354,28 @@ def _check_target(ctx: _Context, target: Version, args, *, strict: bool) -> None
 
 
 def _write_all(ctx: _Context, changelog_text, target: Version) -> list:
-    written = []
-    for src in ctx.sources:
-        if src.kind != "tag" and ver_sources.read_raw(ctx.root, src) is None:
-            raise Refused(f"{src.path}: no version found")
+    """Render every file first, then write; a failed write puts back the files already written."""
+    planned = []  # (display path, file path, new bytes)
     if changelog_text is not None:
         path = _changelog_file(ctx.root, ctx.settings)
         _, newline, bom = ver_changelog.read_text(path)
-        ver_changelog.write_text(path, changelog_text, newline, bom)
-        written.append(ctx.settings.changelog)
+        data = (b"\xef\xbb\xbf" if bom else b"") + changelog_text.replace("\n", newline).encode("utf-8")
+        planned.append((ctx.settings.changelog, path, data))
     for src in ctx.sources:
         if src.kind == "tag":
             continue
-        ver_sources.write_version(ctx.root, src, target)
-        written.append(src.path)
-    return written
+        planned.append((src.path, ver_sources._file(ctx.root, src), ver_sources.render_version(ctx.root, src, target)))
+    originals = [(path, path.read_bytes()) for _, path, _ in planned]
+    done = []
+    try:
+        for (_, path, data), original in zip(planned, originals):
+            path.write_bytes(data)
+            done.append(original)
+    except OSError as exc:
+        for path, data in done:
+            path.write_bytes(data)
+        raise Refused(f"could not write {path.name}: {exc.strerror or exc}; nothing was changed") from None
+    return [shown for shown, _, _ in planned]
 
 
 def _today(args) -> str:
@@ -337,6 +392,9 @@ def _prepare(args) -> int:
     target = ver_semver.next_pre(final, args.pre, ctx.pres) if args.pre else final
     _check_target(ctx, target, args, strict=True)
     text = _changelog_text(ctx.root, ctx.settings)
+    if any(s.version == final for s in ver_changelog.sections(text)):
+        raise Refused(f"[{final}] already has a section: use declare {final}-rc.N for the next pre-release, "
+                      f"or declare {final} for the release")
     latest = ctx.latest_for(final)
     new_text = ver_changelog.cut(text, final, _today(args), ctx.tag_of(latest) if latest else None, ctx.settings.tag)
     for path in _write_all(ctx, new_text, target):
@@ -356,6 +414,9 @@ def _declare(args) -> int:
         text = _changelog_text(ctx.root, ctx.settings) if (_changelog_file(ctx.root, ctx.settings)).is_file() else None
         is_open = text is not None and target.final not in ctx.finals and any(
             s.version == target.final for s in ver_changelog.sections(text))
+        if text is not None and target.is_final and not is_open and target != ctx.declared \
+                and target not in ctx.finals:
+            raise Refused(f"no [{target}] section: cut the release with prepare {target} first")
         if is_open:
             new_text = ver_changelog.fold_unreleased_into(text, target.final)
             if target.is_final:

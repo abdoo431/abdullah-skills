@@ -92,6 +92,16 @@ class CliReadTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(out.count(": error: changelog:"), 1)
 
+    def test_check_production_needs_the_released_section(self):
+        self.repo.checkout("main")
+        self.assertEqual(run("check", "--root", self.root)[0], 0)
+        for text in (changelog("0.1.0"), changelog("0.7.0", "0.2.0", "0.1.0")):
+            with self.subTest(sections=text.count("## [") - 1):
+                self.repo.write("CHANGELOG.md", text)
+                code, out, _ = run("check", "--root", self.root)
+                self.assertEqual(code, 1)
+                self.assertIn(": error: changelog:", out)
+
     def test_usage_errors(self):
         self.assertEqual(run("frobnicate", "--root", self.root)[0], 2)
         self.assertEqual(run("notes", "1.2", "--root", self.root)[0], 2)

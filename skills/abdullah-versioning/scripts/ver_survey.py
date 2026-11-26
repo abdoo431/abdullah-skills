@@ -221,8 +221,9 @@ def _role(branch: Optional[str], settings: Settings) -> Optional[str]:
         return "staging"
     if branch == settings.integration and settings.layout in ("dev-staging-main", "dev-main"):
         return "integration"
-    for role, pattern in (("support", settings.support_branch), ("release", settings.release_branch),
-                          ("hotfix", settings.hotfix_branch)):
+    if support_line(branch, settings) is not None:
+        return "support"
+    for role, pattern in (("release", settings.release_branch), ("hotfix", settings.hotfix_branch)):
         prefix = _pattern_prefix(pattern)
         if prefix and branch.startswith(prefix):
             return role
